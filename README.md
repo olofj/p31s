@@ -147,11 +147,41 @@ sudo python tools/discover.py
 
 Grant Bluetooth access when prompted by the system.
 
+## Help Wanted
+
+This project needs contributors with access to P31S hardware. Here's how you can help:
+
+### High Priority
+
+- **Hardware Testing** - Run `python tools/discover.py -a <ADDRESS>` and share the GATT service/characteristic UUIDs from your P31S
+- **Protocol Verification** - Test whether TSPL commands or binary protocol works with your printer using `python tools/test_protocols.py <ADDRESS>`
+- **Print Testing** - Try printing with `p31 test <ADDRESS>` and report results
+
+### Medium Priority
+
+- **Other Printer Models** - Test compatibility with similar printers (NIIMBOT, MakeID, Phomemo)
+- **macOS Testing** - Verify the driver works correctly on macOS
+- **Label Size Calibration** - Help determine correct DPI and margin settings for various label sizes
+
+### Nice to Have
+
+- **QuickLZ Compression** - Implement bitmap compression for faster printing (used by the official app)
+- **Label Templates** - Add support for common label layouts (address labels, barcodes, etc.)
+- **Windows Support** - Test and fix any Windows-specific issues with Bleak
+- **Documentation** - Improve protocol documentation based on testing findings
+
+### How to Contribute
+
+1. Open an issue with your findings (device info, working/non-working commands)
+2. Submit PRs for bug fixes or new features
+3. Share Bluetooth packet captures if you can obtain them
+
 ## References
 
 - [NIIMBOT Protocol Wiki](https://printers.niim.blue/interfacing/proto/)
 - [Cat Printer Reverse Engineering](https://werwolv.net/blog/cat_printer)
 - [Phomemo D30 Protocol](https://github.com/polskafan/phomemo_d30)
+- [TSPL Programming Manual](https://www.tscprinters.com/EN/support/support_download/TSPL_TSPL2_Programming.pdf)
 
 ## License
 
