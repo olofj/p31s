@@ -232,12 +232,20 @@ class TSPLCommand:
         self._add_raw(self.CRLF)
 
     def bitmap_from_image(self, x: int, y: int, image: Image.Image,
-                          mode: BitmapMode = BitmapMode.OVERWRITE):
+                          mode: BitmapMode = BitmapMode.OR,
+                          dither_black: bool = True):
         """
         Draw a PIL Image as bitmap.
 
         The image should be 1-bit mode. If not, it will be converted.
         In TSPL, 0 = black (print), 1 = white (no print).
+
+        Args:
+            x, y: Position in dots
+            image: PIL Image to draw
+            mode: Bitmap overlay mode (default OR, which works best with P31S)
+            dither_black: If True, adds minimal white pixels to solid black
+                         areas to bypass printer thermal protection
         """
         if image.mode != "1":
             image = image.convert("1")
@@ -276,7 +284,27 @@ class TSPLCommand:
             while len(data) % width_bytes != 0:
                 data.append(0xFF)  # Pad with white
 
+        # Apply dithering to bypass thermal protection
+        # The P31S rejects bitmaps that are entirely 0x00 (solid black)
+        if dither_black:
+            data = self._dither_solid_black(data)
+
         self.bitmap(x, y, width_bytes, height, mode, bytes(data))
+
+    @staticmethod
+    def _dither_solid_black(data: bytearray) -> bytearray:
+        """
+        Add minimal white pixels to solid black regions.
+
+        The P31S printer rejects bitmaps with all 0x00 bytes (thermal protection).
+        This adds one white pixel every 4 bytes to bypass this protection
+        while maintaining near-black appearance.
+        """
+        result = bytearray(data)
+        for i in range(len(result)):
+            if result[i] == 0x00 and i % 4 == 0:
+                result[i] = 0x08  # One white pixel (bit 3)
+        return result
 
     # ---- Print Commands ----
 
@@ -307,12 +335,16 @@ class TSPLCommand:
         """
         Common setup sequence for a label.
 
+        Uses the command order from iOS app capture:
+        SIZE -> GAP -> DIRECTION -> DENSITY -> CLS
+
         Args:
             label: Label dimensions
             density: Print density
         """
         self.size(label.width, label.height)
         self.gap(label.gap)
+        self.direction(Direction.FORWARD, 0)
         self.density(density)
         self.cls()
 

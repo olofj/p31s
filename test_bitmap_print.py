@@ -252,10 +252,10 @@ async def test_bitmap_print(conn: BLEConnection, pattern: str = "checker"):
     print("BITMAP Print Test")
     print("=" * 60)
 
-    # Label size: 15mm x 12mm at 203 DPI
-    # 15mm = ~120 pixels, 12mm = ~96 pixels
-    label_width_mm = 15.0
-    label_height_mm = 12.0
+    # Label size: 40mm x 10mm at 203 DPI
+    # 40mm = ~320 pixels, 10mm = ~80 pixels
+    label_width_mm = 40.0
+    label_height_mm = 10.0
     gap_mm = 2.0
     density = 8
 
@@ -334,15 +334,15 @@ async def test_bitmap_step_by_step(conn: BLEConnection, pattern: str = "checker"
     print("BITMAP Print Test (Step-by-Step)")
     print("=" * 60)
 
-    # Label size: 15mm x 12mm at 203 DPI
-    label_width_mm = 15.0
-    label_height_mm = 12.0
+    # Label size: 40mm x 10mm at 203 DPI
+    label_width_mm = 40.0
+    label_height_mm = 10.0
     gap_mm = 2.0
     density = 8
 
     # Use smaller bitmap for testing
-    bitmap_width = 32  # pixels
-    bitmap_height = 32  # pixels
+    bitmap_width = 64  # pixels
+    bitmap_height = 64  # pixels
     bitmap_width_bytes = (bitmap_width + 7) // 8  # = 4 bytes
 
     x_offset = 40

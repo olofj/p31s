@@ -2,6 +2,7 @@
 High-Level P31S Printer Interface.
 
 Provides a simple API for printing labels on the P31S printer.
+Uses TSPL text-based commands (verified working via iOS capture analysis).
 """
 
 import asyncio
@@ -10,23 +11,46 @@ from typing import Optional, Union
 
 from PIL import Image
 
-from .commands import Commands, LabelType, PrintDensity, PrinterStatus
 from .connection import BLEConnection, PrinterInfo
-from .image import ImageProcessor
-from .protocol import Packet
+from .tspl import TSPLCommand, LabelSize, Density, BitmapMode
+from .tspl_commands import TSPLCommands
+from .responses import PrinterConfig, BatteryStatus
 
 
 class P31Printer:
-    """High-level interface to P31S label printer."""
+    """
+    High-level interface to P31S label printer.
 
-    def __init__(self):
+    Uses TSPL text-based commands verified via iOS app capture analysis.
+    """
+
+    # Default label size (can be overridden)
+    DEFAULT_LABEL_WIDTH_MM = 40.0
+    DEFAULT_LABEL_HEIGHT_MM = 10.0
+    DEFAULT_GAP_MM = 2.0
+
+    def __init__(self, label_width_mm: float = DEFAULT_LABEL_WIDTH_MM,
+                 label_height_mm: float = DEFAULT_LABEL_HEIGHT_MM,
+                 gap_mm: float = DEFAULT_GAP_MM):
+        """
+        Initialize printer interface.
+
+        Args:
+            label_width_mm: Label width in millimeters (default 40mm)
+            label_height_mm: Label height in millimeters (default 10mm)
+            gap_mm: Gap between labels in millimeters (default 2mm)
+        """
         self.connection = BLEConnection()
-        self.image_processor = ImageProcessor()
+        self.label_size = LabelSize(label_width_mm, label_height_mm, gap_mm)
         self._debug = False
 
     def set_debug(self, enabled: bool):
         """Enable/disable debug output."""
         self._debug = enabled
+
+    def set_label_size(self, width_mm: float, height_mm: float, gap_mm: float = 2.0):
+        """Set label dimensions."""
+        self.label_size = LabelSize(width_mm, height_mm, gap_mm)
 
     def _log(self, message: str):
         """Print debug message if enabled."""
@@ -52,12 +76,14 @@ class P31Printer:
         success = await self.connection.connect(address)
 
         if success:
-            self._log("Connected, sending handshake...")
-            # Send initial handshake
-            await self.connection.write(Commands.connect())
+            self._log("Connected, verifying with CONFIG?...")
+            # Verify connection with CONFIG? command
+            await self.connection.write(TSPLCommands.config_query())
             response = await self.connection.read_response(timeout=2.0)
             if response:
-                self._log(f"Handshake response: {response.hex()}")
+                config = PrinterConfig.parse(response)
+                if config:
+                    self._log(f"Printer: FW {config.firmware_version}, {config.resolution} DPI")
 
         return success
 
@@ -66,36 +92,44 @@ class P31Printer:
         await self.connection.disconnect()
         self._log("Disconnected")
 
-    async def get_status(self) -> Optional[PrinterStatus]:
-        """Query printer status."""
-        await self.connection.write(Commands.get_info())
+    async def get_config(self) -> Optional[PrinterConfig]:
+        """Query printer configuration."""
+        await self.connection.write(TSPLCommands.config_query())
         response = await self.connection.read_response(timeout=2.0)
-
         if response:
-            return PrinterStatus.from_response(response)
+            return PrinterConfig.parse(response)
         return None
 
-    async def feed(self, lines: int = 20):
-        """Feed paper forward."""
-        # This may need adjustment based on actual protocol
-        self._log(f"Feeding {lines} lines...")
-        # Some printers use empty rows for feeding
-        await self.connection.write(Commands.print_empty_rows(lines))
+    async def get_battery(self) -> Optional[BatteryStatus]:
+        """Query battery status."""
+        await self.connection.write(TSPLCommands.battery_query())
+        response = await self.connection.read_response(timeout=2.0)
+        if response:
+            return BatteryStatus.parse(response)
+        return None
+
+    async def feed(self):
+        """Feed one label forward."""
+        self._log("Feeding label...")
+        cmd = TSPLCommand()
+        cmd.formfeed()
+        await self.connection.write(cmd.get_commands())
 
     async def print_image(
         self,
         image: Union[str, Path, bytes, Image.Image],
-        density: PrintDensity = PrintDensity.NORMAL,
-        label_type: LabelType = LabelType.GAP,
+        density: Density = Density.LEVEL_8,
+        x: int = 0,
+        y: int = 0,
         copies: int = 1,
     ) -> bool:
         """
-        Print an image as a label.
+        Print an image as a label using TSPL commands.
 
         Args:
             image: Image source (path, bytes, or PIL Image)
-            density: Print darkness level
-            label_type: Type of label media
+            density: Print darkness level (0-15, default 8)
+            x, y: Position offset in dots (default 0,0)
             copies: Number of copies to print
 
         Returns:
@@ -105,66 +139,69 @@ class P31Printer:
             self._log("Not connected!")
             return False
 
-        # Load and prepare image
-        self._log("Processing image...")
-        img = self.image_processor.load(image)
-        img = self.image_processor.prepare(img)
+        # Load image
+        self._log("Loading image...")
+        if isinstance(image, (str, Path)):
+            img = Image.open(image)
+        elif isinstance(image, bytes):
+            from io import BytesIO
+            img = Image.open(BytesIO(image))
+        elif isinstance(image, Image.Image):
+            img = image
+        else:
+            raise ValueError(f"Unsupported image type: {type(image)}")
 
-        width = img.width
-        height = img.height
-        self._log(f"Image size: {width}x{height} pixels")
+        # Convert to 1-bit if needed
+        if img.mode != "1":
+            img = img.convert("L").point(lambda x: 0 if x < 128 else 255, mode="1")
 
-        # Configure print job
-        self._log("Configuring print job...")
-        await self.connection.write(Commands.set_label_type(label_type))
-        await asyncio.sleep(0.05)
+        self._log(f"Image size: {img.width}x{img.height} pixels")
 
-        await self.connection.write(Commands.set_density(density))
-        await asyncio.sleep(0.05)
+        # Build TSPL print job
+        self._log("Building TSPL print job...")
+        cmd = TSPLCommand()
+        cmd.setup_label(self.label_size, density)
+        cmd.bitmap_from_image(x, y, img, mode=BitmapMode.OR, dither_black=True)
+        cmd.print_label(1, copies)
 
-        await self.connection.write(Commands.set_page_size(width, height))
-        await asyncio.sleep(0.05)
+        job_data = cmd.get_commands()
+        self._log(f"Print job size: {len(job_data)} bytes")
 
-        for copy in range(copies):
-            if copies > 1:
-                self._log(f"Printing copy {copy + 1}/{copies}...")
+        # Send using chunked writes for large data
+        mtu = await self.connection.get_mtu()
+        self._log(f"Sending with chunk size: {mtu} bytes")
 
-            # Start print job
-            await self.connection.write(Commands.print_start())
-            await asyncio.sleep(0.1)
+        success = await self.connection.write_chunked(job_data, chunk_size=mtu)
 
-            # Send image data row by row
-            rows = list(self.image_processor.iter_rows(img))
-            compressed = self.image_processor.count_empty_rows(rows)
+        if success:
+            self._log("Print job sent successfully")
+        else:
+            self._log("Print job failed!")
 
-            self._log(f"Sending {len(rows)} rows ({len(compressed)} packets)...")
-
-            for item in compressed:
-                if item[0] == "empty":
-                    await self.connection.write(Commands.print_empty_rows(item[1]))
-                else:
-                    await self.connection.write(Commands.print_bitmap_row(item[1]))
-
-                # Small delay to avoid overwhelming the printer
-                await asyncio.sleep(0.001)
-
-            # End page/job
-            await self.connection.write(Commands.page_end())
-            await asyncio.sleep(0.05)
-
-            await self.connection.write(Commands.print_end())
-            await asyncio.sleep(0.1)
-
-        self._log("Print job complete")
-        return True
+        return success
 
     async def print_test_pattern(self) -> bool:
-        """Print a simple test pattern."""
-        from .image import create_test_pattern
-
+        """Print a simple test pattern (checkerboard)."""
         self._log("Creating test pattern...")
-        pattern = create_test_pattern()
-        return await self.print_image(pattern)
+
+        # Create a checkerboard pattern that works with thermal protection
+        width = 64
+        height = 64
+        img = Image.new("1", (width, height), color=1)  # White background
+
+        # Draw checkerboard
+        for y in range(height):
+            for x in range(width):
+                if (x // 8 + y // 8) % 2 == 0:
+                    img.putpixel((x, y), 0)  # Black
+
+        return await self.print_image(img)
+
+    async def selftest(self) -> bool:
+        """Trigger printer's built-in self-test."""
+        self._log("Sending SELFTEST command...")
+        await self.connection.write(TSPLCommands.selftest())
+        return True
 
     async def discover_services(self) -> list:
         """
@@ -180,7 +217,7 @@ class P31Printer:
 
         Useful for protocol testing.
         """
-        self._log(f"TX: {data.hex()}")
+        self._log(f"TX: {data.hex() if len(data) < 50 else data[:50].hex() + '...'}")
         await self.connection.write(data)
         response = await self.connection.read_response(timeout=2.0)
         if response:
@@ -193,18 +230,22 @@ class P31Printer:
         return self.connection.is_connected
 
 
-async def quick_print(address: str, image_path: str) -> bool:
+async def quick_print(address: str, image_path: str,
+                     label_width_mm: float = 40.0,
+                     label_height_mm: float = 10.0) -> bool:
     """
     Convenience function to quickly print an image.
 
     Args:
         address: Printer Bluetooth address
         image_path: Path to image file
+        label_width_mm: Label width in mm (default 40)
+        label_height_mm: Label height in mm (default 10)
 
     Returns:
         True if successful
     """
-    printer = P31Printer()
+    printer = P31Printer(label_width_mm, label_height_mm)
 
     try:
         if await printer.connect(address):
