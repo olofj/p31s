@@ -260,4 +260,7 @@ class TSPLCommands:
             bitmap_mode, bitmap_data
         ))
         commands.append(TSPLCommands.print_label(copies))
+        # Note: Some printers may need FORMFEED to advance to next label
+        # Uncomment if label doesn't advance after printing:
+        # commands.append(b"FORMFEED\r\n")
         return b"".join(commands)

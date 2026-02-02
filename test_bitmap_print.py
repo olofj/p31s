@@ -75,29 +75,20 @@ def create_black_square(width_pixels: int, height_pixels: int) -> bytes:
 
 def create_fullpage_pattern(width_pixels: int, height_pixels: int) -> bytes:
     """
-    Create a pattern that fills the entire label area.
+    Create a checkerboard pattern that fills the entire label area.
 
-    This ensures proper label feeding by having content across
-    the full label dimensions.
+    Uses only 0xAA/0x55 bytes (no 0x00) to avoid thermal protection.
     """
     width_bytes = (width_pixels + 7) // 8
     data = bytearray()
 
     for y in range(height_pixels):
         for x_byte in range(width_bytes):
-            # Create a pattern based on position
-            if y < 4 or y >= height_pixels - 4:
-                # Top and bottom borders
-                data.append(0x00 if (x_byte % 2 == 0) else 0xFF)
-            elif x_byte == 0 or x_byte == width_bytes - 1:
-                # Left and right edges
+            # Same checkerboard as working small pattern
+            if (y // 8 + x_byte) % 2 == 0:
                 data.append(0xAA)
             else:
-                # Interior - light checkerboard
-                if (y // 8 + x_byte) % 2 == 0:
-                    data.append(0xAA)
-                else:
-                    data.append(0x55)
+                data.append(0x55)
 
     return bytes(data)
 
@@ -281,29 +272,38 @@ async def test_bitmap_print(conn: BLEConnection, pattern: str = "checker"):
     print("BITMAP Print Test")
     print("=" * 60)
 
-    # Label size: 40mm x 10mm at 203 DPI
-    # 40mm = ~320 pixels, 10mm = ~80 pixels
-    label_width_mm = 40.0
-    label_height_mm = 10.0
+    # Label size: 40mm x 10mm physical labels
+    # But in TSPL: width = print head direction, height = feed direction
+    # P31S has 12mm max print width, so 10mm is the "width" and 40mm is "height"
+    label_width_mm = 10.0   # Print head direction (10mm)
+    label_height_mm = 40.0  # Feed direction (40mm)
     gap_mm = 2.0
     density = 8
 
     # Bitmap dimensions
-    # 40mm = ~320 pixels at 203 DPI, 10mm = ~80 pixels
+    # With swapped orientation: width=10mm(~80px), height=40mm(~320px)
     if pattern == "fullpage":
-        # Full label coverage
-        bitmap_width = 320  # Full 40mm width
-        bitmap_height = 80   # Full 10mm height
-        x_offset = 0
-        y_offset = 0
-        print("Creating full-page pattern (320x80 pixels)...")
+        # Full label coverage (with small margin to avoid overprint)
+        bitmap_width = 72    # ~9mm (print direction), leaving margin
+        bitmap_height = 300  # ~37.5mm (feed direction), leaving margin
+        x_offset = 4         # Small margin
+        y_offset = 10        # Small margin
+        print("Creating full-page checkerboard (72x300 = 2700 bytes)...")
         bitmap_data = create_fullpage_pattern(bitmap_width, bitmap_height)
+    elif pattern == "medium":
+        # Medium size to test
+        bitmap_width = 64
+        bitmap_height = 128
+        x_offset = 8   # Centered: (80-64)/2
+        y_offset = 96  # Centered: (320-128)/2
+        print("Creating medium checkerboard (64x128 = 1024 bytes)...")
+        bitmap_data = create_test_pattern(bitmap_width, bitmap_height)
     else:
         # Smaller test pattern
-        bitmap_width = 64  # pixels
+        bitmap_width = 64   # pixels
         bitmap_height = 64  # pixels
-        x_offset = 128  # Centered: (320 - 64) / 2
-        y_offset = 8    # Centered: (80 - 64) / 2
+        x_offset = 8    # Centered: (80 - 64) / 2
+        y_offset = 128  # Centered: (320 - 64) / 2
 
         if pattern == "black":
             print("Creating solid black square (may fail due to thermal protection)...")
@@ -372,24 +372,26 @@ async def test_bitmap_step_by_step(conn: BLEConnection, pattern: str = "checker"
     print("BITMAP Print Test (Step-by-Step)")
     print("=" * 60)
 
-    # Label size: 40mm x 10mm at 203 DPI
-    label_width_mm = 40.0
-    label_height_mm = 10.0
+    # Label size: 40mm x 10mm physical labels
+    # TSPL: width = print head direction (10mm), height = feed direction (40mm)
+    label_width_mm = 10.0
+    label_height_mm = 40.0
     gap_mm = 2.0
     density = 8
 
     # Create bitmap data
+    # Orientation: width=80px (10mm), height=320px (40mm)
     if pattern == "fullpage":
-        bitmap_width = 320
-        bitmap_height = 80
-        x_offset = 0
-        y_offset = 0
+        bitmap_width = 72
+        bitmap_height = 300
+        x_offset = 4
+        y_offset = 10
         bitmap_data = create_fullpage_pattern(bitmap_width, bitmap_height)
     else:
         bitmap_width = 64
         bitmap_height = 64
-        x_offset = 128
-        y_offset = 8
+        x_offset = 8
+        y_offset = 128
 
         if pattern == "black":
             bitmap_data = create_black_square(bitmap_width, bitmap_height)
@@ -528,7 +530,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--pattern", "-p",
-        choices=["checker", "black", "dithered", "lines", "border", "gradient", "fullpage"],
+        choices=["checker", "black", "dithered", "lines", "border", "gradient", "fullpage", "medium"],
         default="checker",
         help="Bitmap pattern to print (default: checker)"
     )

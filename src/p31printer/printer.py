@@ -24,9 +24,11 @@ class P31Printer:
     Uses TSPL text-based commands verified via iOS app capture analysis.
     """
 
-    # Default label size (can be overridden)
-    DEFAULT_LABEL_WIDTH_MM = 40.0
-    DEFAULT_LABEL_HEIGHT_MM = 10.0
+    # Default label size for 40x10mm labels (can be overridden)
+    # TSPL orientation: width = print head direction, height = feed direction
+    # For 40x10mm physical labels: width=10mm, height=40mm in TSPL terms
+    DEFAULT_LABEL_WIDTH_MM = 10.0
+    DEFAULT_LABEL_HEIGHT_MM = 40.0
     DEFAULT_GAP_MM = 2.0
 
     def __init__(self, label_width_mm: float = DEFAULT_LABEL_WIDTH_MM,
