@@ -2,11 +2,11 @@
 
 Linux/macOS driver for the **POLONO P31S** thermal label printer.
 
-> **Status:** Protocol reverse engineering in progress
+> **Status:** Working! Uses TSPL text commands over BLE.
 
 ## Overview
 
-This project aims to reverse engineer and document the BLE protocol used by the P31S label printer, then provide an open-source driver for Linux and macOS.
+Open-source driver for the P31S label printer. Supports 40x14mm labels at 203 DPI with max resolution of 120x320 pixels.
 
 ## Installation
 
@@ -45,7 +45,7 @@ python tools/discover.py --address XX:XX:XX:XX:XX:XX
 
 ```bash
 p31 print XX:XX:XX:XX:XX:XX image.png
-p31 print XX:XX:XX:XX:XX:XX image.png --density dark --copies 2
+p31 print XX:XX:XX:XX:XX:XX image.png --density 12 --copies 2
 ```
 
 ### Print Test Pattern
@@ -105,10 +105,11 @@ asyncio.run(main())
 ```
 p31/
 ├── src/p31printer/      # Main library
-│   ├── protocol.py      # Packet encoding/decoding
-│   ├── commands.py      # Command definitions
-│   ├── connection.py    # BLE connection handling
+│   ├── connection.py    # BLE connection (scan, chunked writes)
 │   ├── printer.py       # High-level API
+│   ├── tspl.py          # TSPL command builder
+│   ├── tspl_commands.py # Status queries (CONFIG?, BATTERY?)
+│   ├── responses.py     # Response parsers
 │   ├── image.py         # Image processing
 │   └── cli.py           # Command-line interface
 ├── tools/               # Reverse engineering tools
@@ -147,34 +148,15 @@ sudo python tools/discover.py
 
 Grant Bluetooth access when prompted by the system.
 
-## Help Wanted
-
-This project needs contributors with access to P31S hardware. Here's how you can help:
-
-### High Priority
-
-- **Hardware Testing** - Run `python tools/discover.py -a <ADDRESS>` and share the GATT service/characteristic UUIDs from your P31S
-- **Protocol Verification** - Test whether TSPL commands or binary protocol works with your printer using `python tools/test_protocols.py <ADDRESS>`
-- **Print Testing** - Try printing with `p31 test <ADDRESS>` and report results
-
-### Medium Priority
-
-- **Other Printer Models** - Test compatibility with similar printers (NIIMBOT, MakeID, Phomemo)
-- **macOS Testing** - Verify the driver works correctly on macOS
-- **Label Size Calibration** - Help determine correct DPI and margin settings for various label sizes
+## Contributions Welcome
 
 ### Nice to Have
 
-- **QuickLZ Compression** - Implement bitmap compression for faster printing (used by the official app)
+- **QuickLZ Compression** - Implement bitmap compression for faster printing
 - **Label Templates** - Add support for common label layouts (address labels, barcodes, etc.)
 - **Windows Support** - Test and fix any Windows-specific issues with Bleak
-- **Documentation** - Improve protocol documentation based on testing findings
-
-### How to Contribute
-
-1. Open an issue with your findings (device info, working/non-working commands)
-2. Submit PRs for bug fixes or new features
-3. Share Bluetooth packet captures if you can obtain them
+- **Other Label Sizes** - Test and calibrate for different label dimensions
+- **Other Printer Models** - Test compatibility with similar printers (NIIMBOT, MakeID, Phomemo)
 
 ## References
 
