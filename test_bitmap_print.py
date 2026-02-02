@@ -283,12 +283,13 @@ async def test_bitmap_print(conn: BLEConnection, pattern: str = "checker"):
     # Bitmap dimensions
     # With swapped orientation: width=10mm(~80px), height=40mm(~320px)
     if pattern == "fullpage":
-        # Full label coverage (with small margin to avoid overprint)
-        bitmap_width = 72    # ~9mm (print direction), leaving margin
-        bitmap_height = 300  # ~37.5mm (feed direction), leaving margin
-        x_offset = 4         # Small margin
-        y_offset = 10        # Small margin
-        print("Creating full-page checkerboard (72x300 = 2700 bytes)...")
+        # Full label coverage - maximize print area with small margins
+        # Label: ~80px wide (10mm), ~320px tall (40mm) at 203 DPI
+        bitmap_width = 72    # ~9mm (print direction)
+        bitmap_height = 312  # ~39mm (feed direction)
+        x_offset = 10        # Shift left (coordinate system appears inverted)
+        y_offset = 4         # Smaller top margin, extend further down
+        print("Creating full-page checkerboard (72x312 = 2808 bytes)...")
         bitmap_data = create_fullpage_pattern(bitmap_width, bitmap_height)
     elif pattern == "medium":
         # Medium size to test
