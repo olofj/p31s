@@ -198,18 +198,22 @@ The app supports QuickLZ compression for bitmap data:
 ### TSPL Sequence
 
 ```
-1. SIZE 15 mm,10 mm\r\n    # Set label dimensions
+1. SIZE 14 mm,40 mm\r\n    # Set label dimensions (width=14mm, height=40mm)
 2. GAP 2 mm,0 mm\r\n       # Set gap (or BLINE for black mark)
-3. CLS\r\n                 # Clear buffer
-4. DENSITY 8\r\n           # Set density
-5. BITMAP x,y,w,h,0,<data> # Send image
-6. PRINT 1\r\n             # Print
+3. DIRECTION 0,0\r\n       # Set print direction
+4. DENSITY 8\r\n           # Set density (0-15)
+5. CLS\r\n                 # Clear buffer
+6. BITMAP x,y,w,h,1,<data> # Send image (mode 1=OR works best)
+7. PRINT 1\r\n             # Print
 ```
 
-### Binary Protocol Sequence
+### Binary Protocol Sequence (NOT WORKING)
+
+Note: The NIIMBOT-style binary protocol was explored but does not work with the P31S.
+The printer uses TSPL text commands instead.
 
 ```
-1. Connect command (0xC1)
+1. Connect command (0xC1)  # Does not work
 2. Set label type
 3. Set density
 4. Set page size

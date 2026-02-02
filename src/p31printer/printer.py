@@ -24,10 +24,19 @@ class P31Printer:
     Uses TSPL text-based commands verified via iOS app capture analysis.
     """
 
-    # Default label size for 40x10mm labels (can be overridden)
+    # Maximum printable resolution (verified via edge testing)
+    MAX_WIDTH_PX = 120   # ~15mm at 203 DPI (covers 14mm label width)
+    MAX_HEIGHT_PX = 320  # 40mm label height at 203 DPI
+
+    # Optimal padding for centering on 14mm label
+    # Content area: 116px (pad_left=4, pad_right=0)
+    PAD_LEFT = 4
+    PAD_RIGHT = 0
+
+    # Default label size for 40x14mm labels (can be overridden)
     # TSPL orientation: width = print head direction, height = feed direction
-    # For 40x10mm physical labels: width=10mm, height=40mm in TSPL terms
-    DEFAULT_LABEL_WIDTH_MM = 10.0
+    # For 40x14mm physical labels: width=14mm, height=40mm in TSPL terms
+    DEFAULT_LABEL_WIDTH_MM = 14.0
     DEFAULT_LABEL_HEIGHT_MM = 40.0
     DEFAULT_GAP_MM = 2.0
 

@@ -13,8 +13,8 @@ import sys
 
 import click
 
-from .commands import LabelType, PrintDensity
 from .printer import P31Printer
+from .tspl import Density
 
 
 @click.group()
@@ -84,30 +84,14 @@ def discover(ctx, address):
 @click.argument("image", type=click.Path(exists=True))
 @click.option(
     "--density",
-    type=click.Choice(["light", "normal", "dark"]),
-    default="normal",
-    help="Print density",
-)
-@click.option(
-    "--label-type",
-    type=click.Choice(["gap", "black-mark", "continuous"]),
-    default="gap",
-    help="Label media type",
+    type=click.IntRange(0, 15),
+    default=8,
+    help="Print density (0-15, default 8)",
 )
 @click.option("--copies", default=1, help="Number of copies")
 @click.pass_context
-def print_image(ctx, address, image, density, label_type, copies):
+def print_image(ctx, address, image, density, copies):
     """Print an image file."""
-    density_map = {
-        "light": PrintDensity.LIGHT,
-        "normal": PrintDensity.NORMAL,
-        "dark": PrintDensity.DARK,
-    }
-    label_map = {
-        "gap": LabelType.GAP,
-        "black-mark": LabelType.BLACK_MARK,
-        "continuous": LabelType.CONTINUOUS,
-    }
 
     async def _print():
         printer = P31Printer()
@@ -123,8 +107,7 @@ def print_image(ctx, address, image, density, label_type, copies):
             click.echo(f"Printing {image}...")
             success = await printer.print_image(
                 image,
-                density=density_map[density],
-                label_type=label_map[label_type],
+                density=Density(density),
                 copies=copies,
             )
 

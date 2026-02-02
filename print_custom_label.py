@@ -1,7 +1,7 @@
 #!/opt/homebrew/opt/python@3.10/bin/python3.10
 """
 Print a custom label with text and graphics on P31S printer.
-Label: 40mm x 10mm (tall, narrow) at 203 DPI
+Label: 40mm x 14mm (tall, narrow) at 203 DPI
 """
 
 import asyncio
@@ -17,7 +17,7 @@ def create_label_image(text: str = "HELLO", width: int = 120, height: int = 320)
     """Create a label image with text.
 
     Max resolution: 120x320 (15mm x 40mm print head area).
-    Asymmetric padding centers 80px content on 10mm label.
+    Asymmetric padding centers content on 14mm label.
     """
     img = Image.new("1", (width, height), color=1)  # 1 = white
     draw = ImageDraw.Draw(img)
@@ -144,7 +144,7 @@ async def print_label(text: str = "HELLO"):
         y_offset = 0  # Start at top edge (verified optimal)
         
         commands = []
-        commands.append(b"SIZE 10 mm,40 mm\r\n")
+        commands.append(b"SIZE 14 mm,40 mm\r\n")
         commands.append(b"GAP 2 mm,0 mm\r\n")
         commands.append(b"DIRECTION 0,0\r\n")
         commands.append(b"DENSITY 12\r\n")

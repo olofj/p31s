@@ -146,7 +146,7 @@ async def print_sweep():
 
         # Build TSPL commands
         commands = []
-        commands.append(b"SIZE 10 mm,40 mm\r\n")
+        commands.append(b"SIZE 14 mm,40 mm\r\n")
         commands.append(b"GAP 2 mm,0 mm\r\n")
         commands.append(b"DIRECTION 0,0\r\n")
         commands.append(b"DENSITY 12\r\n")

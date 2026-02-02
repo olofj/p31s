@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test the absolute printable limits of the P31S on 40x10mm labels.
+Test the absolute printable limits of the P31S on 40x14mm labels.
 Prints edge markers to find exact clipping boundaries.
 """
 
@@ -132,7 +132,7 @@ async def print_edge_test():
         y_offset = 0
 
         commands = []
-        commands.append(b"SIZE 10 mm,40 mm\r\n")
+        commands.append(b"SIZE 14 mm,40 mm\r\n")
         commands.append(b"GAP 2 mm,0 mm\r\n")
         commands.append(b"DIRECTION 0,0\r\n")
         commands.append(b"DENSITY 12\r\n")

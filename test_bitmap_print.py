@@ -272,19 +272,19 @@ async def test_bitmap_print(conn: BLEConnection, pattern: str = "checker"):
     print("BITMAP Print Test")
     print("=" * 60)
 
-    # Label size: 40mm x 10mm physical labels
+    # Label size: 40mm x 14mm physical labels
     # But in TSPL: width = print head direction, height = feed direction
-    # P31S has 12mm max print width, so 10mm is the "width" and 40mm is "height"
-    label_width_mm = 10.0   # Print head direction (10mm)
+    # P31S has 12mm max print width, so 14mm is the "width" and 40mm is "height"
+    label_width_mm = 14.0   # Print head direction (14mm)
     label_height_mm = 40.0  # Feed direction (40mm)
     gap_mm = 2.0
     density = 8
 
     # Bitmap dimensions
-    # With swapped orientation: width=10mm(~80px), height=40mm(~320px)
+    # With swapped orientation: width=14mm(~80px), height=40mm(~320px)
     if pattern == "fullpage":
         # Full label coverage - maximize print area with small margins
-        # Label: ~80px wide (10mm), ~320px tall (40mm) at 203 DPI
+        # Label: ~80px wide (14mm), ~320px tall (40mm) at 203 DPI
         bitmap_width = 72    # ~9mm (print direction)
         bitmap_height = 312  # ~39mm (feed direction)
         x_offset = 10        # Shift left (coordinate system appears inverted)
@@ -373,15 +373,15 @@ async def test_bitmap_step_by_step(conn: BLEConnection, pattern: str = "checker"
     print("BITMAP Print Test (Step-by-Step)")
     print("=" * 60)
 
-    # Label size: 40mm x 10mm physical labels
-    # TSPL: width = print head direction (10mm), height = feed direction (40mm)
-    label_width_mm = 10.0
+    # Label size: 40mm x 14mm physical labels
+    # TSPL: width = print head direction (14mm), height = feed direction (40mm)
+    label_width_mm = 14.0
     label_height_mm = 40.0
     gap_mm = 2.0
     density = 8
 
     # Create bitmap data
-    # Orientation: width=80px (10mm), height=320px (40mm)
+    # Orientation: width=80px (14mm), height=320px (40mm)
     if pattern == "fullpage":
         bitmap_width = 72
         bitmap_height = 300
