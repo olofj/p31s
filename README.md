@@ -1,12 +1,13 @@
-# P31 Label Printer Driver
+# P31S Label Printer Driver
 
-Linux/macOS driver for the **POLONO P31S** thermal label printer.
+Open-source Linux/macOS driver for the **POLONO P31S** thermal label printer.
 
-> **Status:** Working! Uses TSPL text commands over BLE.
+## Features
 
-## Overview
-
-Open-source driver for the P31S label printer. Supports 40x14mm labels at 203 DPI with max resolution of 120x320 pixels.
+- Print images to 40x14mm labels at 203 DPI (120x320 pixels max)
+- Query printer status, battery level, and firmware version
+- Simple CLI and Python API
+- Uses TSPL text commands over Bluetooth Low Energy
 
 ## Installation
 
@@ -54,32 +55,6 @@ p31s print XX:XX:XX:XX:XX:XX image.png --density 12 --copies 2
 p31s test XX:XX:XX:XX:XX:XX
 ```
 
-## Protocol Reverse Engineering
-
-### Tools Provided
-
-1. **discover.py** - Scan for printers and dump GATT services
-2. **test_protocols.py** - Test known protocols (NIIMBOT, Cat Printer, ESC/POS)
-3. **apk_uuid_finder.py** - Extract UUIDs from decompiled APK
-
-### APK Analysis
-
-```bash
-# Download Labelnize APK from APKPure
-# Decompile with JADX
-./jadx/bin/jadx -d labelnize_decompiled labelnize.apk
-
-# Search for protocol info
-python tools/apk_uuid_finder.py labelnize_decompiled
-```
-
-### Protocol Testing
-
-```bash
-# Test various protocols against the printer
-python tools/test_protocols.py XX:XX:XX:XX:XX:XX
-```
-
 ## Library Usage
 
 ```python
@@ -105,17 +80,14 @@ asyncio.run(main())
 ```
 p31/
 ├── src/p31sprinter/      # Main library
+│   ├── printer.py       # High-level API (P31SPrinter class)
 │   ├── connection.py    # BLE connection (scan, chunked writes)
-│   ├── printer.py       # High-level API
 │   ├── tspl.py          # TSPL command builder
 │   ├── tspl_commands.py # Status queries (CONFIG?, BATTERY?)
 │   ├── responses.py     # Response parsers
-│   ├── image.py         # Image processing
 │   └── cli.py           # Command-line interface
-├── tools/               # Reverse engineering tools
-│   ├── discover.py      # BLE scanner
-│   ├── test_protocols.py # Protocol tester
-│   └── apk_uuid_finder.py # APK analysis
+├── tools/               # Development utilities
+│   └── discover.py      # BLE scanner/debugger
 ├── docs/
 │   └── protocol.md      # Protocol documentation
 └── tests/               # Unit tests
@@ -123,7 +95,7 @@ p31/
 
 ## Protocol Documentation
 
-See [docs/protocol.md](docs/protocol.md) for the work-in-progress protocol specification.
+See [docs/protocol.md](docs/protocol.md) for the complete protocol specification.
 
 ## Dependencies
 
@@ -148,23 +120,20 @@ sudo python tools/discover.py
 
 Grant Bluetooth access when prompted by the system.
 
-## Contributions Welcome
+## Contributing
 
-### Nice to Have
+Contributions welcome! Some ideas:
 
-- **QuickLZ Compression** - Implement bitmap compression for faster printing
-- **Label Templates** - Add support for common label layouts (address labels, barcodes, etc.)
-- **Windows Support** - Test and fix any Windows-specific issues with Bleak
-- **Other Label Sizes** - Test and calibrate for different label dimensions
-- **Other Printer Models** - Test compatibility with similar printers (NIIMBOT, MakeID, Phomemo)
+- **QuickLZ Compression** - Faster bitmap transfers
+- **Barcode/QR Support** - Using TSPL's built-in commands
+- **Windows Testing** - Verify Bleak compatibility
+- **Other Label Sizes** - Calibration for different dimensions
 
 ## References
 
-- [NIIMBOT Protocol Wiki](https://printers.niim.blue/interfacing/proto/)
-- [Cat Printer Reverse Engineering](https://werwolv.net/blog/cat_printer)
-- [Phomemo D30 Protocol](https://github.com/polskafan/phomemo_d30)
 - [TSPL Programming Manual](https://www.tscprinters.com/EN/support/support_download/TSPL_TSPL2_Programming.pdf)
+- [NIIMBOT Protocol Wiki](https://printers.niim.blue/interfacing/proto/)
 
 ## License
 
-MIT
+Apache 2.0 - see [LICENSE](LICENSE)

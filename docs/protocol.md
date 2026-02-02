@@ -1,10 +1,10 @@
 # P31S Printer Protocol Documentation
 
-> **Status:** Active Research - Protocol reverse engineering in progress
+> **Status:** Verified and Working
 
 ## Overview
 
-The POLONO P31S is a 203 DPI thermal label printer that communicates via Bluetooth Low Energy (BLE).
+The POLONO P31S is a 203 DPI thermal label printer that communicates via Bluetooth Low Energy (BLE). It uses TSPL (TSC Printer Language) text-based commands.
 
 ## BLE Communication
 
@@ -326,10 +326,10 @@ The P31S printer is configured with these parameters:
 - [x] Found status code definitions
 
 ### Live Testing
-- [ ] Run discover.py against actual P31S printer
-- [ ] Confirm service/characteristic UUIDs
-- [ ] Test TSPL commands
-- [ ] Test binary protocol commands
+- [x] Run discover.py against actual P31S printer
+- [x] Confirm service/characteristic UUIDs
+- [x] Test TSPL commands (working)
+- [x] Test binary protocol commands (not supported by P31S)
 
 ---
 
@@ -343,7 +343,7 @@ The P31S printer is configured with these parameters:
 | Checksum | XOR of payload | None (plain text) |
 | Used by | NIIMBOT D-series | POLONO P31S |
 
-**Note:** The P31S may respond to both protocols depending on context. Use `test_status_commands.py` to verify which protocol is active.
+**Note:** The P31S only responds to TSPL text commands. The NIIMBOT binary protocol is documented for reference but does not work with the P31S.
 
 ---
 
