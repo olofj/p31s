@@ -3,6 +3,9 @@ P31S Printer Command Definitions.
 
 This module provides high-level command builders for the P31S printer.
 Commands are built using the protocol module's packet format.
+
+NOTE: The P31S uses text-based TSPL commands, not binary protocol.
+For status queries, use TSPLCommands from tspl_commands module.
 """
 
 from dataclasses import dataclass
@@ -10,6 +13,8 @@ from enum import IntEnum
 from typing import Optional
 
 from .protocol import Packet, PacketType
+from .tspl_commands import TSPLCommands
+from .responses import PrinterConfig, BatteryStatus, ChunkSize, PrintedCount
 
 
 class LabelType(IntEnum):

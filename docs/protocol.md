@@ -46,6 +46,57 @@ The Labelnize app uses multiple protocols depending on the printer model:
 2. **ESC/POS** - Standard thermal printer commands
 3. **Custom Binary Protocol** - For specific printer models
 
+**Key Discovery:** The P31S uses TSPL text-based commands, NOT the NIIMBOT binary protocol.
+
+### Status Query Commands (from O8.java)
+
+These text-based commands query printer status:
+
+| Command | Purpose | CMD_TYPE |
+|---------|---------|----------|
+| `CONFIG?\r\n` | Query firmware/hardware version, resolution, settings | 10 |
+| `BATTERY?\r\n` | Query battery level and charging status | 13 |
+| `SELFTEST\r\n` | Trigger self-test print | 12 |
+| `INITIALPRINTER\r\n` | Initialize printer | 11 |
+| `GETCHUNKSIZE\r\n` | Query supported chunk size | 16 |
+| `GETPRINTEDCOUNT\r\n` | Query print counter | 35 |
+
+#### CONFIG? Response (from PrinterConfig.java)
+
+Response is 19 or 20 bytes:
+
+```
+Offset  Length  Field
+0-6     7       Header (unknown format, stripped before parsing)
+7-8     2       Resolution (little-endian uint16, e.g., 203 DPI)
+9-11    3       Hardware version (3 bytes -> hex string like "010203")
+12-14   3       Firmware version (3 bytes -> hex string like "010203")
+15      1       Shutdown timer setting
+16      1       Sound setting (0=off, 1=on)
+17      1       Config version (only in 20-byte response)
+18-19   2       CRLF terminator (\r\n)
+```
+
+**Version Format:** Each byte represents a version component.
+- `01 02 03` = Version 1.2.3
+
+#### BATTERY? Response
+
+Response is 11 or 12 bytes:
+
+```
+Offset  Length  Field
+0-6     7       "BATTERY" ASCII header
+7       1       Battery level (BCD) - 11-byte response
+        OR      Charging status (1=charging) - 12-byte response
+8       1       Battery level (BCD) - 12-byte response only
+-2,-1   2       CRLF terminator (\r\n)
+```
+
+**BCD Encoding:** Battery level is Binary-Coded Decimal.
+- `0x50` = 50%
+- `0x99` = 99%
+
 ### TSPL Commands (Primary for label printers)
 
 TSPL is a text-based command language. Commands are sent as ASCII strings terminated with `\r\n` (CRLF).
@@ -194,3 +245,17 @@ From `YXPrinterConstant.java`:
 - [ ] Confirm service/characteristic UUIDs
 - [ ] Test TSPL commands
 - [ ] Test binary protocol commands
+
+---
+
+## Protocol Comparison
+
+| Aspect | Binary (NIIMBOT) | Text (TSPL) |
+|--------|-----------------|-------------|
+| Format | Binary with 55 55 header | ASCII text with CRLF |
+| Version query | `0x40` command code | `CONFIG?\r\n` text |
+| Battery query | `0xDC` heartbeat | `BATTERY?\r\n` text |
+| Checksum | XOR of payload | None (plain text) |
+| Used by | NIIMBOT D-series | POLONO P31S |
+
+**Note:** The P31S may respond to both protocols depending on context. Use `test_status_commands.py` to verify which protocol is active.
