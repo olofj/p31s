@@ -259,14 +259,15 @@ async def test_bitmap_print(conn: BLEConnection, pattern: str = "checker"):
     gap_mm = 2.0
     density = 8
 
-    # Bitmap dimensions (smaller than label for margins)
+    # Bitmap dimensions (fit within 40x10mm label)
+    # 40mm = ~320 pixels, 10mm = ~80 pixels
     bitmap_width = 64  # pixels
-    bitmap_height = 64  # pixels
+    bitmap_height = 64  # pixels (fits in 80 pixel height)
     bitmap_width_bytes = (bitmap_width + 7) // 8  # = 8 bytes
 
-    # Position (centered-ish)
-    x_offset = 28  # (120 - 64) / 2 ≈ 28
-    y_offset = 16  # (96 - 64) / 2 ≈ 16
+    # Position (centered on 40x10mm label)
+    x_offset = 128  # (320 - 64) / 2 = 128
+    y_offset = 8    # (80 - 64) / 2 = 8
 
     # Create bitmap data based on pattern type
     if pattern == "black":
@@ -343,10 +344,10 @@ async def test_bitmap_step_by_step(conn: BLEConnection, pattern: str = "checker"
     # Use smaller bitmap for testing
     bitmap_width = 64  # pixels
     bitmap_height = 64  # pixels
-    bitmap_width_bytes = (bitmap_width + 7) // 8  # = 4 bytes
+    bitmap_width_bytes = (bitmap_width + 7) // 8  # = 8 bytes
 
-    x_offset = 40
-    y_offset = 30
+    x_offset = 100  # Centered on 40mm (~320 pixel) label
+    y_offset = 8    # Near top of 10mm (~80 pixel) label
 
     # Create bitmap data
     if pattern == "black":
