@@ -13,19 +13,19 @@ from p31printer.connection import BLEConnection
 
 
 
-def create_label_image(text: str = "HELLO", width: int = 96, height: int = 312) -> Image.Image:
+def create_label_image(text: str = "HELLO", width: int = 120, height: int = 320) -> Image.Image:
     """Create a label image with text.
 
-    Width is 96px (full print head). Asymmetric padding centers content on 10mm label.
-    Settings verified via sweep testing.
+    Max resolution: 120x320 (15mm x 40mm print head area).
+    Asymmetric padding centers 80px content on 10mm label.
     """
     img = Image.new("1", (width, height), color=1)  # 1 = white
     draw = ImageDraw.Draw(img)
 
-    # Asymmetric padding to center content on physical label
+    # Minimal padding
     pad_left = 4
-    pad_right = 12
-    content_width = width - pad_left - pad_right  # 80px
+    pad_right = 0
+    content_width = width - pad_left - pad_right  # 116px
 
     try:
         font_large = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 24)
@@ -88,8 +88,8 @@ async def print_label(text: str = "HELLO"):
     """Print a custom label."""
     print(f"Creating label with text: {text}")
 
-    bitmap_width = 96  # Full 12mm print head width at 203 DPI
-    bitmap_height = 312
+    bitmap_width = 120  # Max print head width (15mm at 203 DPI)
+    bitmap_height = 320  # Max height for 40mm label
     img = create_label_image(text, bitmap_width, bitmap_height)
 
     # Save preview
