@@ -61,40 +61,51 @@ These text-based commands query printer status:
 | `GETCHUNKSIZE\r\n` | Query supported chunk size | 16 |
 | `GETPRINTEDCOUNT\r\n` | Query print counter | 35 |
 
-#### CONFIG? Response (from PrinterConfig.java)
+#### CONFIG? Response (verified from hardware)
 
-Response is 19 or 20 bytes:
-
-```
-Offset  Length  Field
-0-6     7       Header (unknown format, stripped before parsing)
-7-8     2       Resolution (little-endian uint16, e.g., 203 DPI)
-9-11    3       Hardware version (3 bytes -> hex string like "010203")
-12-14   3       Firmware version (3 bytes -> hex string like "010203")
-15      1       Shutdown timer setting
-16      1       Sound setting (0=off, 1=on)
-17      1       Config version (only in 20-byte response)
-18-19   2       CRLF terminator (\r\n)
-```
-
-**Version Format:** Each byte represents a version component.
-- `01 02 03` = Version 1.2.3
-
-#### BATTERY? Response
-
-Response is 11 or 12 bytes:
+Response is 19 bytes:
 
 ```
 Offset  Length  Field
-0-6     7       "BATTERY" ASCII header
-7       1       Battery level (BCD) - 11-byte response
-        OR      Charging status (1=charging) - 12-byte response
-8       1       Battery level (BCD) - 12-byte response only
--2,-1   2       CRLF terminator (\r\n)
+0-6     7       "CONFIG " header (including trailing space)
+7       1       Padding (0x00)
+8       1       Resolution (single byte, e.g., 0xCB = 203 DPI)
+9       1       Padding (0x00)
+10-12   3       Hardware version (3 bytes, e.g., [0x00, 0x01, 0x00] = 0.1.0)
+13-15   3       Firmware version (3 bytes, e.g., [0x01, 0x04, 0x02] = 1.4.2)
+16      1       Settings byte
+17-18   2       CRLF terminator (\r\n)
+```
+
+**Example Response:**
+```
+434f4e4649472000cb00000100010402000d0a
+"CONFIG " 00 CB 00 | 00 01 00 | 01 04 02 | 00 | \r\n
+          ^res     ^hw 0.1.0  ^fw 1.4.2  ^settings
+```
+
+#### BATTERY? Response (verified from hardware)
+
+Response is 12 bytes:
+
+```
+Offset  Length  Field
+0-7     8       "BATTERY " header (including trailing space)
+8       1       Battery level (BCD encoded)
+9       1       Charging status (0=not charging, 1=charging)
+10-11   2       CRLF terminator (\r\n)
+```
+
+**Example Response:**
+```
+424154544552592075000d0a
+"BATTERY " 75 00 \r\n
+           ^75% ^not charging
 ```
 
 **BCD Encoding:** Battery level is Binary-Coded Decimal.
 - `0x50` = 50%
+- `0x75` = 75%
 - `0x99` = 99%
 
 ### TSPL Commands (Primary for label printers)

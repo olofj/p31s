@@ -15,21 +15,21 @@ class PrinterConfig:
     """
     Parsed CONFIG? response.
 
-    Response structure (19 or 20 bytes total):
+    Actual response structure (19 bytes, verified from hardware):
         Offset  Length  Field
-        0-6     7       Header (stripped before parsing)
-        7-8     2       Resolution (little-endian uint16)
-        9-11    3       Hardware version (3 bytes -> hex string like "010203")
-        12-14   3       Firmware version (3 bytes -> hex string like "010203")
-        15      1       Shutdown timer setting
-        16      1       Sound setting
-        17      1       Config version (only in 20-byte response)
-        18-19   2       CRLF terminator
+        0-6     7       Header "CONFIG " (including trailing space)
+        7       1       Padding (0x00)
+        8       1       Resolution (single byte, e.g., 203 for 203 DPI)
+        9       1       Padding (0x00)
+        10-12   3       Hardware version (3 bytes -> "0.1.0")
+        13-15   3       Firmware version (3 bytes -> "1.4.2")
+        16      1       Settings byte (shutdown/sound)
+        17-18   2       CRLF terminator
     """
 
     resolution: int
-    hardware_version: str  # e.g., "010203" -> "1.2.3"
-    firmware_version: str  # e.g., "010203" -> "1.2.3"
+    hardware_version: str  # e.g., "000100" -> "0.1.0"
+    firmware_version: str  # e.g., "010402" -> "1.4.2"
     shutdown_timer: int
     sound_enabled: bool
     config_version: Optional[int] = None
@@ -41,7 +41,7 @@ class PrinterConfig:
         Parse CONFIG? response bytes.
 
         Args:
-            data: Raw response bytes (expected 19 or 20 bytes)
+            data: Raw response bytes (expected 19 bytes)
 
         Returns:
             PrinterConfig instance or None if parsing fails
@@ -50,38 +50,38 @@ class PrinterConfig:
         if data.endswith(b"\r\n"):
             data = data[:-2]
 
-        # Response should be 17 or 18 bytes after stripping CRLF
-        # (19-2=17 or 20-2=18)
+        # Verify header starts with "CONFIG"
+        if not data.startswith(b"CONFIG"):
+            return None
+
+        # Response should be 17 bytes after stripping CRLF
         if len(data) < 17:
             return None
 
-        # Skip 7-byte header
+        # Skip 7-byte header "CONFIG "
         payload = data[7:]
 
         if len(payload) < 10:
             return None
 
-        # Parse resolution (2 bytes, little-endian)
-        resolution = payload[0] | (payload[1] << 8)
+        # Parse resolution (single byte at offset 1, after padding byte)
+        # payload[0] = padding (0x00)
+        # payload[1] = resolution (e.g., 203)
+        # payload[2] = padding (0x00)
+        resolution = payload[1]
 
-        # Parse hardware version (3 bytes -> hex string)
-        hw_bytes = payload[2:5]
+        # Parse hardware version (3 bytes at offset 3)
+        hw_bytes = payload[3:6]
         hardware_version = _bytes_to_version(hw_bytes)
 
-        # Parse firmware version (3 bytes -> hex string)
-        fw_bytes = payload[5:8]
+        # Parse firmware version (3 bytes at offset 6)
+        fw_bytes = payload[6:9]
         firmware_version = _bytes_to_version(fw_bytes)
 
-        # Parse shutdown timer
-        shutdown_timer = payload[8] if len(payload) > 8 else 0
-
-        # Parse sound setting
-        sound_enabled = bool(payload[9]) if len(payload) > 9 else False
-
-        # Parse config version (only in longer response)
-        config_version = None
-        if len(payload) > 10:
-            config_version = payload[10]
+        # Parse settings byte at offset 9
+        settings = payload[9] if len(payload) > 9 else 0
+        shutdown_timer = settings  # May need further decoding
+        sound_enabled = False  # May be encoded in settings byte
 
         return cls(
             resolution=resolution,
@@ -89,7 +89,7 @@ class PrinterConfig:
             firmware_version=firmware_version,
             shutdown_timer=shutdown_timer,
             sound_enabled=sound_enabled,
-            config_version=config_version,
+            config_version=None,
             raw_data=data,
         )
 
@@ -119,13 +119,12 @@ class BatteryStatus:
     """
     Parsed BATTERY? response.
 
-    Response structure (11 or 12 bytes):
+    Actual response structure (12 bytes, verified from hardware):
         Offset  Length  Field
-        0-6     7       "BATTERY" ASCII header
-        7       1       Battery level (BCD encoded) - 11-byte response
-                        OR Charging status (1=charging) - 12-byte response
-        8       1       Battery level (BCD encoded) - 12-byte response only
-        -2,-1   2       CRLF terminator
+        0-7     8       "BATTERY " ASCII header (including trailing space)
+        8       1       Battery level (BCD encoded, e.g., 0x75 = 75%)
+        9       1       Charging status (0=not charging, 1=charging)
+        10-11   2       CRLF terminator
     """
 
     level: int  # 0-100 percent
@@ -138,7 +137,7 @@ class BatteryStatus:
         Parse BATTERY? response bytes.
 
         Args:
-            data: Raw response bytes (expected 11 or 12 bytes)
+            data: Raw response bytes (expected 12 bytes)
 
         Returns:
             BatteryStatus instance or None if parsing fails
@@ -147,33 +146,16 @@ class BatteryStatus:
         if data.endswith(b"\r\n"):
             data = data[:-2]
 
-        # Validate header
-        if len(data) < 8 or not data.startswith(b"BATTERY"):
+        # Validate header - note it's "BATTERY " with trailing space (8 bytes)
+        if len(data) < 10 or not data.startswith(b"BATTERY"):
             return None
 
-        # 11-byte response (9 after CRLF strip): header(7) + level(1) + CRLF(2)
-        # 12-byte response (10 after CRLF strip): header(7) + charging(1) + level(1) + CRLF(2)
-
-        payload_len = len(data) - 7  # Length after "BATTERY"
-
-        if payload_len == 2:
-            # 11-byte format: just battery level (9 bytes total after strip)
-            # Actually: header(7) + level(1) = 8, so payload_len=1
-            # Let me re-check...
-            pass
-
-        if payload_len == 1:
-            # Simple format: just battery level
-            level_bcd = data[7]
-            level = _decode_bcd(level_bcd)
-            charging = False
-        elif payload_len >= 2:
-            # Extended format: charging status + battery level
-            charging = bool(data[7])
-            level_bcd = data[8]
-            level = _decode_bcd(level_bcd)
-        else:
-            return None
+        # Header is 8 bytes "BATTERY " (with space)
+        # Byte 8: battery level (BCD)
+        # Byte 9: charging status
+        level_bcd = data[8]
+        level = _decode_bcd(level_bcd)
+        charging = bool(data[9])
 
         return cls(
             level=level,
