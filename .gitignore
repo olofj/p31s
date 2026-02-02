@@ -44,3 +44,17 @@ jadx/
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated previews
+*_preview*.png
+label_preview.png
+
+# Test photos
+*.JPG
+*.jpg
+
+# Temporary test scripts
+[0-9].py
+
+# iOS sysdiagnose
+sysdiagnose_*/
