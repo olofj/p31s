@@ -73,6 +73,35 @@ def create_black_square(width_pixels: int, height_pixels: int) -> bytes:
     return bytes([0x00] * (width_bytes * height_pixels))
 
 
+def create_fullpage_pattern(width_pixels: int, height_pixels: int) -> bytes:
+    """
+    Create a pattern that fills the entire label area.
+
+    This ensures proper label feeding by having content across
+    the full label dimensions.
+    """
+    width_bytes = (width_pixels + 7) // 8
+    data = bytearray()
+
+    for y in range(height_pixels):
+        for x_byte in range(width_bytes):
+            # Create a pattern based on position
+            if y < 4 or y >= height_pixels - 4:
+                # Top and bottom borders
+                data.append(0x00 if (x_byte % 2 == 0) else 0xFF)
+            elif x_byte == 0 or x_byte == width_bytes - 1:
+                # Left and right edges
+                data.append(0xAA)
+            else:
+                # Interior - light checkerboard
+                if (y // 8 + x_byte) % 2 == 0:
+                    data.append(0xAA)
+                else:
+                    data.append(0x55)
+
+    return bytes(data)
+
+
 def create_dithered_black(width_pixels: int, height_pixels: int) -> bytes:
     """
     Create a nearly-black pattern with minimal white pixels.
@@ -259,35 +288,43 @@ async def test_bitmap_print(conn: BLEConnection, pattern: str = "checker"):
     gap_mm = 2.0
     density = 8
 
-    # Bitmap dimensions (fit within 40x10mm label)
-    # 40mm = ~320 pixels, 10mm = ~80 pixels
-    bitmap_width = 64  # pixels
-    bitmap_height = 64  # pixels (fits in 80 pixel height)
-    bitmap_width_bytes = (bitmap_width + 7) // 8  # = 8 bytes
-
-    # Position (centered on 40x10mm label)
-    x_offset = 128  # (320 - 64) / 2 = 128
-    y_offset = 8    # (80 - 64) / 2 = 8
-
-    # Create bitmap data based on pattern type
-    if pattern == "black":
-        print("Creating solid black square (may fail due to thermal protection)...")
-        bitmap_data = create_black_square(bitmap_width, bitmap_height)
-    elif pattern == "dithered":
-        print("Creating dithered black (bypasses thermal protection)...")
-        bitmap_data = create_dithered_black(bitmap_width, bitmap_height)
-    elif pattern == "lines":
-        print("Creating horizontal line pattern...")
-        bitmap_data = create_simple_pattern(bitmap_width, bitmap_height)
-    elif pattern == "border":
-        print("Creating border/frame pattern...")
-        bitmap_data = create_border_pattern(bitmap_width, bitmap_height)
-    elif pattern == "gradient":
-        print("Creating gradient pattern...")
-        bitmap_data = create_gradient_pattern(bitmap_width, bitmap_height)
+    # Bitmap dimensions
+    # 40mm = ~320 pixels at 203 DPI, 10mm = ~80 pixels
+    if pattern == "fullpage":
+        # Full label coverage
+        bitmap_width = 320  # Full 40mm width
+        bitmap_height = 80   # Full 10mm height
+        x_offset = 0
+        y_offset = 0
+        print("Creating full-page pattern (320x80 pixels)...")
+        bitmap_data = create_fullpage_pattern(bitmap_width, bitmap_height)
     else:
-        print("Creating checkerboard pattern...")
-        bitmap_data = create_test_pattern(bitmap_width, bitmap_height)
+        # Smaller test pattern
+        bitmap_width = 64  # pixels
+        bitmap_height = 64  # pixels
+        x_offset = 128  # Centered: (320 - 64) / 2
+        y_offset = 8    # Centered: (80 - 64) / 2
+
+        if pattern == "black":
+            print("Creating solid black square (may fail due to thermal protection)...")
+            bitmap_data = create_black_square(bitmap_width, bitmap_height)
+        elif pattern == "dithered":
+            print("Creating dithered black (bypasses thermal protection)...")
+            bitmap_data = create_dithered_black(bitmap_width, bitmap_height)
+        elif pattern == "lines":
+            print("Creating horizontal line pattern...")
+            bitmap_data = create_simple_pattern(bitmap_width, bitmap_height)
+        elif pattern == "border":
+            print("Creating border/frame pattern...")
+            bitmap_data = create_border_pattern(bitmap_width, bitmap_height)
+        elif pattern == "gradient":
+            print("Creating gradient pattern...")
+            bitmap_data = create_gradient_pattern(bitmap_width, bitmap_height)
+        else:
+            print("Creating checkerboard pattern...")
+            bitmap_data = create_test_pattern(bitmap_width, bitmap_height)
+
+    bitmap_width_bytes = (bitmap_width + 7) // 8
 
     print(f"Bitmap: {bitmap_width}x{bitmap_height} pixels = {len(bitmap_data)} bytes")
 
@@ -341,27 +378,33 @@ async def test_bitmap_step_by_step(conn: BLEConnection, pattern: str = "checker"
     gap_mm = 2.0
     density = 8
 
-    # Use smaller bitmap for testing
-    bitmap_width = 64  # pixels
-    bitmap_height = 64  # pixels
-    bitmap_width_bytes = (bitmap_width + 7) // 8  # = 8 bytes
-
-    x_offset = 100  # Centered on 40mm (~320 pixel) label
-    y_offset = 8    # Near top of 10mm (~80 pixel) label
-
     # Create bitmap data
-    if pattern == "black":
-        bitmap_data = create_black_square(bitmap_width, bitmap_height)
-    elif pattern == "dithered":
-        bitmap_data = create_dithered_black(bitmap_width, bitmap_height)
-    elif pattern == "lines":
-        bitmap_data = create_simple_pattern(bitmap_width, bitmap_height)
-    elif pattern == "border":
-        bitmap_data = create_border_pattern(bitmap_width, bitmap_height)
-    elif pattern == "gradient":
-        bitmap_data = create_gradient_pattern(bitmap_width, bitmap_height)
+    if pattern == "fullpage":
+        bitmap_width = 320
+        bitmap_height = 80
+        x_offset = 0
+        y_offset = 0
+        bitmap_data = create_fullpage_pattern(bitmap_width, bitmap_height)
     else:
-        bitmap_data = create_test_pattern(bitmap_width, bitmap_height)
+        bitmap_width = 64
+        bitmap_height = 64
+        x_offset = 128
+        y_offset = 8
+
+        if pattern == "black":
+            bitmap_data = create_black_square(bitmap_width, bitmap_height)
+        elif pattern == "dithered":
+            bitmap_data = create_dithered_black(bitmap_width, bitmap_height)
+        elif pattern == "lines":
+            bitmap_data = create_simple_pattern(bitmap_width, bitmap_height)
+        elif pattern == "border":
+            bitmap_data = create_border_pattern(bitmap_width, bitmap_height)
+        elif pattern == "gradient":
+            bitmap_data = create_gradient_pattern(bitmap_width, bitmap_height)
+        else:
+            bitmap_data = create_test_pattern(bitmap_width, bitmap_height)
+
+    bitmap_width_bytes = (bitmap_width + 7) // 8
 
     print(f"Bitmap: {bitmap_width}x{bitmap_height} pixels = {len(bitmap_data)} bytes")
 
@@ -485,7 +528,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--pattern", "-p",
-        choices=["checker", "black", "dithered", "lines", "border", "gradient"],
+        choices=["checker", "black", "dithered", "lines", "border", "gradient", "fullpage"],
         default="checker",
         help="Bitmap pattern to print (default: checker)"
     )
