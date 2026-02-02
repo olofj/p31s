@@ -41,14 +41,9 @@ The app requests MTU of 512 bytes after service discovery.
 
 ## Command Protocol
 
-The Labelnize app uses multiple protocols depending on the printer model:
-1. **TSPL (TSC Printer Language)** - Text-based commands for label printers
-2. **ESC/POS** - Standard thermal printer commands
-3. **Custom Binary Protocol** - For specific printer models
+The P31S uses TSPL (TSC Printer Language) text-based commands terminated with `\r\n` (CRLF).
 
-**Key Discovery:** The P31S uses TSPL text-based commands, NOT the NIIMBOT binary protocol.
-
-### Status Query Commands (from O8.java)
+### Status Query Commands
 
 These text-based commands query printer status:
 
@@ -156,36 +151,15 @@ FORMFEED               # Feed to next label
 SOUND n,t              # Play beep (n times, t duration)
 ```
 
-### Binary Packet Format (NIIMBOT-style)
-
-For printers using binary protocol:
-
-```
-+------+------+---------+----------+------+----------+------+------+
-| 0x55 | 0x55 | Command | Data Len | Data | Checksum | 0xAA | 0xAA |
-+------+------+---------+----------+------+----------+------+------+
-  Head          CMD        LEN       ...      XOR        Tail
-```
-
-**Checksum:** XOR of all bytes from Command through Data
-
-### ESC/POS Commands
-
-Standard thermal printer commands:
-- `ESC @` (0x1B 0x40) - Initialize printer
-- `GS v 0` (0x1D 0x76 0x30) - Print raster bit image
-- `ESC !` (0x1B 0x21) - Select print mode
-
 ## Image Format
 
 ### Bitmap Encoding
 
 - **Resolution:** 203 DPI
-- **Maximum Width:** ~15mm (approximately 120 pixels)
+- **Maximum Width:** 120 pixels (~15mm)
+- **Maximum Height:** 320 pixels (40mm)
 - **Bit Order:** MSB first
-- **Color:**
-  - For TSPL: 1 = white (no burn), 0 = black (burn)
-  - For some binary protocols: 1 = black (burn), 0 = white
+- **Color:** 1 = white (no burn), 0 = black (burn)
 
 ### Compression
 
@@ -205,22 +179,6 @@ The app supports QuickLZ compression for bitmap data:
 5. CLS\r\n                 # Clear buffer
 6. BITMAP x,y,w,h,1,<data> # Send image (mode 1=OR works best)
 7. PRINT 1\r\n             # Print
-```
-
-### Binary Protocol Sequence (NOT WORKING)
-
-Note: The NIIMBOT-style binary protocol was explored but does not work with the P31S.
-The printer uses TSPL text commands instead.
-
-```
-1. Connect command (0xC1)  # Does not work
-2. Set label type
-3. Set density
-4. Set page size
-5. Print start (0x01)
-6. Send bitmap rows
-7. Page end (0xE3)
-8. Print end (0xF3)
 ```
 
 ## Printer Status Codes
@@ -247,8 +205,6 @@ From `YXPrinterConstant.java`:
 ## References
 
 - [TSPL/TSPL2 Programming Manual](https://www.tscprinters.com/EN/support/support_download/TSPL_TSPL2_Programming.pdf)
-- [ESC/POS Command Reference](https://reference.epson-biz.com/modules/ref_escpos/index.php)
-- [NIIMBOT Protocol Wiki](https://printers.niim.blue/interfacing/proto/)
 
 ---
 
@@ -329,21 +285,6 @@ The P31S printer is configured with these parameters:
 - [x] Run discover.py against actual P31S printer
 - [x] Confirm service/characteristic UUIDs
 - [x] Test TSPL commands (working)
-- [x] Test binary protocol commands (not supported by P31S)
-
----
-
-## Protocol Comparison
-
-| Aspect | Binary (NIIMBOT) | Text (TSPL) |
-|--------|-----------------|-------------|
-| Format | Binary with 55 55 header | ASCII text with CRLF |
-| Version query | `0x40` command code | `CONFIG?\r\n` text |
-| Battery query | `0xDC` heartbeat | `BATTERY?\r\n` text |
-| Checksum | XOR of payload | None (plain text) |
-| Used by | NIIMBOT D-series | POLONO P31S |
-
-**Note:** The P31S only responds to TSPL text commands. The NIIMBOT binary protocol is documented for reference but does not work with the P31S.
 
 ---
 

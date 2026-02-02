@@ -132,7 +132,6 @@ Contributions welcome! Some ideas:
 ## References
 
 - [TSPL Programming Manual](https://www.tscprinters.com/EN/support/support_download/TSPL_TSPL2_Programming.pdf)
-- [NIIMBOT Protocol Wiki](https://printers.niim.blue/interfacing/proto/)
 
 ## License
 
