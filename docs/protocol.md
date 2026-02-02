@@ -112,25 +112,49 @@ Offset  Length  Field
 
 TSPL is a text-based command language. Commands are sent as ASCII strings terminated with `\r\n` (CRLF).
 
-**Common Commands:**
+**Print Job Command Sequence (from LabelCommand.java):**
 ```
-SIZE 15 mm,10 mm      # Set label size
-GAP 2 mm,0 mm         # Set gap between labels
-CLS                   # Clear image buffer
-DENSITY 8             # Set print density (0-15)
-DIRECTION 0,0         # Set print direction
-BITMAP x,y,w,h,mode,data  # Print bitmap
-PRINT 1               # Print 1 copy
+SIZE 15 mm,12 mm       # Set label size
+GAP 2 mm,0 mm          # Set gap between labels
+DIRECTION 0,0          # Set print direction (0=normal, 1=180°)
+DENSITY 8              # Set print density (0-15, skip if -1)
+CLS                    # Clear image buffer
+BITMAP x,y,w,h,0,data  # Send bitmap with binary data
+PRINT 1                # Print 1 copy
 ```
+
+**Important:** The command sequence matters. The APK always sends commands in this order:
+1. SIZE
+2. GAP
+3. DIRECTION
+4. DENSITY (optional)
+5. CLS
+6. BITMAP
+7. PRINT
 
 **Bitmap Command Format:**
 ```
-BITMAP x,y,width_bytes,height,mode,<binary_data>
+BITMAP x,y,width_bytes,height,mode,<binary_data>\r\n
 ```
-- `x, y`: Position in dots
-- `width_bytes`: Width in bytes (8 pixels per byte)
+- `x, y`: Position in dots (203 dots per inch)
+- `width_bytes`: Width in bytes (pixels / 8, rounded up)
 - `height`: Height in dots
 - `mode`: 0=overwrite, 1=OR, 2=XOR, 3=QuickLZ compressed
+- `<binary_data>`: Raw bitmap data immediately after comma, followed by CRLF
+
+**Bitmap Data Format:**
+- 1-bit per pixel, MSB first (leftmost pixel in high bit)
+- For TSPL: 0 = black (burn), 1 = white (no burn)
+- Data length = width_bytes × height bytes
+
+**Other Commands:**
+```
+BAR x,y,width,height   # Draw filled rectangle (may not work on all printers)
+BLINE n mm,0 mm        # Set black mark detection
+OFFSET n mm            # Set offset
+FORMFEED               # Feed to next label
+SOUND n,t              # Play beep (n times, t duration)
+```
 
 ### Binary Packet Format (NIIMBOT-style)
 
@@ -224,6 +248,52 @@ From `YXPrinterConstant.java`:
 
 ---
 
+## P31S Device Configuration (from cloud_config_labelnize.json)
+
+The P31S printer is configured with these parameters:
+
+```json
+{
+  "deviceName": "P31S",
+  "command": 0,           // isPrintModelAfterSend - standard TSPL
+  "dpi": 203,             // 203 dots per inch
+  "maxWidth": 12,         // 12mm maximum print width
+  "isEncrypt": 1,         // Paper encryption enabled (RFID)
+  "isHalfInch": 1,        // Half-inch device mode
+  "paperType": "0,1",     // Supports gap (0) and continuous (1)
+  "defaultGap": 5,        // Default 5mm gap
+  "defaultTemplateWidth": 40,
+  "defaultTemplateHeight": 14,
+  "densityModel": 0,      // Manual density control
+  "compressionType": -1,  // No compression
+  "canEnergy": 1,         // Battery monitoring supported
+  "canSet": 1,            // Settings adjustable
+  "upgradeType": 1        // JieLi firmware upgrade method
+}
+```
+
+**Command Types (from Devices.java):**
+| Type | Name | Description |
+|------|------|-------------|
+| 0 | isPrintModelAfterSend | Standard TSPL - print after all data sent |
+| 1 | isFakeESCCommand | ESC-like but different |
+| 2 | isPrintModelESCCommand | Standard ESC/POS |
+| 3 | isPrintModelPl70e | PL70e specific protocol |
+| 4 | isYXCommand | YinXiang protocol |
+| 5 | isAYCommand | AY protocol |
+| 6 | isPocketCommand | Pocket printer protocol |
+| 7 | isPrintModelSpecial | Special TSPL variant |
+| 8 | isYXTwoInchCommand | YinXiang 2-inch |
+| 9 | isYXFourInchCommand | YinXiang 4-inch |
+
+**P31S uses command type 0**, which means:
+- Standard TSPL text commands
+- All commands sent as ASCII with CRLF terminator
+- Print executes after PRINT command is sent
+- No special handshaking required (but RFID read may be needed for paper verification)
+
+---
+
 ## APK Analysis Notes
 
 ### Decompiled Files of Interest
@@ -270,3 +340,57 @@ From `YXPrinterConstant.java`:
 | Used by | NIIMBOT D-series | POLONO P31S |
 
 **Note:** The P31S may respond to both protocols depending on context. Use `test_status_commands.py` to verify which protocol is active.
+
+---
+
+## iOS BLE Capture Analysis
+
+Analysis of actual iOS app (Labelnize) traffic via sysdiagnose BLE packet capture.
+
+### Connection Parameters
+
+- **MTU**: Client requests 527, server responds with 124
+- **Effective chunk size**: ~121 bytes (MTU - 3 for ATT overhead)
+
+### GATT Handles
+
+| Handle | Purpose |
+|--------|---------|
+| 0x0006 | Write commands (TSPL text) |
+| 0x0008 | Receive notifications (responses) |
+| 0x0012 | Write (encryption/authentication related) |
+| 0x0015 | Write (encryption/authentication - 48-byte blocks) |
+| 0x0020 | Write (encryption/authentication related) |
+
+### Working Print Sequence (from capture)
+
+```
+SIZE 15 mm,40 mm\r\n
+GAP 5.0 mm,0 mm\r\n
+DIRECTION 0,0\r\n
+DENSITY 15\r\n
+CLS\r\n
+BITMAP 0,8,12,304,1,<binary_data>\r\n
+PRINT 1\r\n
+```
+
+Key observations:
+- **BITMAP mode 1 (OR)** is used, not mode 0 (OVERWRITE)
+- **Density 15** (maximum) is used
+- Large bitmap data is chunked across multiple BLE writes
+- CRLF terminator appears at the END of all bitmap data, not after the command prefix
+- Commands sent via Write Without Response (ATT opcode 0x52)
+
+### Thermal Protection
+
+The P31S rejects bitmap data that is entirely 0x00 (solid black). This is thermal head protection to prevent overheating.
+
+**Working patterns:**
+- Checkerboard (0xAA/0x55) - alternating pixels
+- Gradient (0x80, 0xC0, 0xE0, etc.) - varying coverage
+- Any pattern with at least some 1-bits per region
+
+**Failing patterns:**
+- Solid black (all 0x00 bytes) - rejected silently
+
+**Workaround:** Use dithered black (e.g., alternate 0x00 with 0x08) to achieve near-black appearance while satisfying thermal protection requirements.

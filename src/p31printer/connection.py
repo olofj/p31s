@@ -68,15 +68,15 @@ class BLEConnection:
     async def scan(cls, timeout: float = 10.0) -> list[PrinterInfo]:
         """Scan for P31S printers."""
         printers = []
-        devices = await BleakScanner.discover(timeout=timeout)
+        devices = await BleakScanner.discover(timeout=timeout, return_adv=True)
 
-        for device in devices:
+        for device, adv_data in devices.values():
             name = device.name or ""
             if any(pattern.upper() in name.upper() for pattern in cls.DEVICE_PATTERNS):
                 printers.append(PrinterInfo(
                     name=name,
                     address=device.address,
-                    rssi=device.rssi or -100
+                    rssi=adv_data.rssi if adv_data.rssi is not None else -100
                 ))
 
         return sorted(printers, key=lambda p: p.rssi, reverse=True)
@@ -148,6 +148,11 @@ class BLEConnection:
         """Set a callback for incoming notifications."""
         self._notification_callback = callback
 
+    # Default chunk size for BLE writes
+    # iOS capture shows MTU of 124, so ~121 byte chunks work
+    # Using 100 as a safe default that works with most BLE connections
+    DEFAULT_CHUNK_SIZE = 100
+
     async def write(self, data: bytes, response: bool = False) -> bool:
         """Write data to the printer."""
         if not self.client or not self.write_char:
@@ -163,6 +168,66 @@ class BLEConnection:
         except Exception as e:
             print(f"Write failed: {e}")
             return False
+
+    async def write_chunked(
+        self,
+        data: bytes,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        delay_ms: float = 10.0,
+        response: bool = False
+    ) -> bool:
+        """
+        Write data to the printer in chunks.
+
+        Args:
+            data: Data to write
+            chunk_size: Maximum bytes per chunk (default 20, safe for most BLE)
+            delay_ms: Delay between chunks in milliseconds
+            response: Whether to wait for write response
+
+        Returns:
+            True if all chunks were written successfully
+        """
+        if not self.client or not self.write_char:
+            return False
+
+        total_chunks = (len(data) + chunk_size - 1) // chunk_size
+
+        for i in range(0, len(data), chunk_size):
+            chunk = data[i:i + chunk_size]
+            chunk_num = i // chunk_size + 1
+
+            try:
+                await self.client.write_gatt_char(
+                    self.write_char,
+                    chunk,
+                    response=response
+                )
+            except Exception as e:
+                print(f"Write failed at chunk {chunk_num}/{total_chunks}: {e}")
+                return False
+
+            # Small delay between chunks to avoid overwhelming the printer
+            if delay_ms > 0 and i + chunk_size < len(data):
+                await asyncio.sleep(delay_ms / 1000.0)
+
+        return True
+
+    async def get_mtu(self) -> int:
+        """Get the negotiated MTU size."""
+        if not self.client:
+            return self.DEFAULT_CHUNK_SIZE
+
+        try:
+            # Bleak provides mtu_size on some backends
+            mtu = getattr(self.client, 'mtu_size', None)
+            if mtu:
+                # MTU includes 3 bytes of ATT overhead
+                return max(mtu - 3, self.DEFAULT_CHUNK_SIZE)
+        except Exception:
+            pass
+
+        return self.DEFAULT_CHUNK_SIZE
 
     async def read_response(self, timeout: float = 5.0) -> Optional[bytes]:
         """Wait for and return a response from the printer."""
