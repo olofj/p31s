@@ -1,1 +1,1 @@
-# Tests for p31printer
+# Tests for p31sprinter

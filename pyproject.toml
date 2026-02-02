@@ -1,12 +1,12 @@
 [project]
-name = "p31printer"
+name = "p31sprinter"
 version = "0.1.0"
 description = "Linux/macOS driver for POLONO P31S label printer"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "P31 Printer Project"}
+    {name = "P31S Printer Project"}
 ]
 dependencies = [
     "bleak>=0.21.0",
@@ -20,7 +20,7 @@ dev = [
 ]
 
 [project.scripts]
-p31 = "p31printer.cli:main"
+p31s = "p31sprinter.cli:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]

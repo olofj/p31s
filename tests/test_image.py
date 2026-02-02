@@ -3,7 +3,7 @@
 import pytest
 from PIL import Image
 
-from p31printer.image import ImageProcessor, create_test_pattern
+from p31sprinter.image import ImageProcessor, create_test_pattern
 
 
 class TestImageProcessor:

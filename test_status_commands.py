@@ -15,9 +15,9 @@ import argparse
 import asyncio
 import sys
 
-from src.p31printer.connection import BLEConnection
-from src.p31printer.tspl_commands import TSPLCommands
-from src.p31printer.responses import PrinterConfig, BatteryStatus
+from src.p31sprinter.connection import BLEConnection
+from src.p31sprinter.tspl_commands import TSPLCommands
+from src.p31sprinter.responses import PrinterConfig, BatteryStatus
 
 
 async def scan_and_select() -> str | None:
@@ -126,7 +126,7 @@ async def test_binary_protocol(conn: BLEConnection) -> None:
     print("=" * 50)
 
     # Import binary protocol
-    from src.p31printer.protocol import Packet, PacketType
+    from src.p31sprinter.protocol import Packet, PacketType
 
     # Try GET_INFO command
     cmd = Packet(PacketType.GET_INFO, b"").encode()

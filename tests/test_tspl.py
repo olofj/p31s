@@ -3,7 +3,7 @@
 import pytest
 from PIL import Image
 
-from p31printer.tspl import (
+from p31sprinter.tspl import (
     TSPLCommand, LabelSize, Density, BitmapMode, Direction, create_print_job
 )
 

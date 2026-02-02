@@ -28,7 +28,7 @@ pip install bleak pillow click
 
 ```bash
 # Using CLI
-p31 scan
+p31s scan
 
 # Or using the discovery tool
 python tools/discover.py
@@ -44,14 +44,14 @@ python tools/discover.py --address XX:XX:XX:XX:XX:XX
 ### Print an Image
 
 ```bash
-p31 print XX:XX:XX:XX:XX:XX image.png
-p31 print XX:XX:XX:XX:XX:XX image.png --density 12 --copies 2
+p31s print XX:XX:XX:XX:XX:XX image.png
+p31s print XX:XX:XX:XX:XX:XX image.png --density 12 --copies 2
 ```
 
 ### Print Test Pattern
 
 ```bash
-p31 test XX:XX:XX:XX:XX:XX
+p31s test XX:XX:XX:XX:XX:XX
 ```
 
 ## Protocol Reverse Engineering
@@ -84,15 +84,15 @@ python tools/test_protocols.py XX:XX:XX:XX:XX:XX
 
 ```python
 import asyncio
-from p31printer import P31Printer
+from p31sprinter import P31SPrinter
 
 async def main():
     # Scan for printers
-    printers = await P31Printer.scan()
+    printers = await P31SPrinter.scan()
     print(f"Found: {printers}")
 
     # Connect and print
-    printer = P31Printer()
+    printer = P31SPrinter()
     if await printer.connect(printers[0].address):
         await printer.print_image("label.png")
         await printer.disconnect()
@@ -104,7 +104,7 @@ asyncio.run(main())
 
 ```
 p31/
-├── src/p31printer/      # Main library
+├── src/p31sprinter/      # Main library
 │   ├── connection.py    # BLE connection (scan, chunked writes)
 │   ├── printer.py       # High-level API
 │   ├── tspl.py          # TSPL command builder

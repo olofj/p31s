@@ -1,15 +1,15 @@
-"""P31 Label Printer Driver for Linux/macOS."""
+"""P31S Label Printer Driver for Linux/macOS."""
 
 __version__ = "0.1.0"
 
-from .printer import P31Printer
+from .printer import P31SPrinter
 from .connection import BLEConnection
 from .tspl import TSPLCommand, LabelSize, Density, BitmapMode
 from .tspl_commands import TSPLCommands
 from .responses import PrinterConfig, BatteryStatus, ChunkSize, PrintedCount
 
 __all__ = [
-    "P31Printer",
+    "P31SPrinter",
     "BLEConnection",
     "TSPLCommand",
     "LabelSize",

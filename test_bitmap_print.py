@@ -23,8 +23,8 @@ import argparse
 import asyncio
 import sys
 
-from src.p31printer.connection import BLEConnection
-from src.p31printer.tspl_commands import TSPLCommands, BitmapMode
+from src.p31sprinter.connection import BLEConnection
+from src.p31sprinter.tspl_commands import TSPLCommands, BitmapMode
 
 
 def create_test_pattern(width_pixels: int, height_pixels: int) -> bytes:

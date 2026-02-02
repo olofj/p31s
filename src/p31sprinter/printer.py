@@ -17,7 +17,7 @@ from .tspl_commands import TSPLCommands
 from .responses import PrinterConfig, BatteryStatus
 
 
-class P31Printer:
+class P31SPrinter:
     """
     High-level interface to P31S label printer.
 
@@ -66,7 +66,7 @@ class P31Printer:
     def _log(self, message: str):
         """Print debug message if enabled."""
         if self._debug:
-            print(f"[P31] {message}")
+            print(f"[P31S] {message}")
 
     @classmethod
     async def scan(cls, timeout: float = 10.0) -> list[PrinterInfo]:
@@ -256,7 +256,7 @@ async def quick_print(address: str, image_path: str,
     Returns:
         True if successful
     """
-    printer = P31Printer(label_width_mm, label_height_mm)
+    printer = P31SPrinter(label_width_mm, label_height_mm)
 
     try:
         if await printer.connect(address):

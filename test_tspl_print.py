@@ -9,8 +9,8 @@ import argparse
 import asyncio
 import sys
 
-from src.p31printer.connection import BLEConnection
-from src.p31printer.tspl_commands import TSPLCommands
+from src.p31sprinter.connection import BLEConnection
+from src.p31sprinter.tspl_commands import TSPLCommands
 
 
 async def scan_and_select() -> str | None:

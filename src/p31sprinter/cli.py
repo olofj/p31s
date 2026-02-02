@@ -13,7 +13,7 @@ import sys
 
 import click
 
-from .printer import P31Printer
+from .printer import P31SPrinter
 from .tspl import Density
 
 
@@ -33,7 +33,7 @@ def scan(timeout):
 
     async def _scan():
         click.echo(f"Scanning for printers ({timeout}s)...")
-        printers = await P31Printer.scan(timeout=timeout)
+        printers = await P31SPrinter.scan(timeout=timeout)
 
         if not printers:
             click.echo("No printers found.")
@@ -53,7 +53,7 @@ def discover(ctx, address):
     """Discover GATT services on a printer."""
 
     async def _discover():
-        printer = P31Printer()
+        printer = P31SPrinter()
         printer.set_debug(ctx.obj["debug"])
 
         click.echo(f"Connecting to {address}...")
@@ -94,7 +94,7 @@ def print_image(ctx, address, image, density, copies):
     """Print an image file."""
 
     async def _print():
-        printer = P31Printer()
+        printer = P31SPrinter()
         printer.set_debug(ctx.obj["debug"])
 
         click.echo(f"Connecting to {address}...")
@@ -129,7 +129,7 @@ def test(ctx, address):
     """Print a test pattern."""
 
     async def _test():
-        printer = P31Printer()
+        printer = P31SPrinter()
         printer.set_debug(ctx.obj["debug"])
 
         click.echo(f"Connecting to {address}...")
@@ -161,7 +161,7 @@ def raw(ctx, address, hex_data):
     """Send raw hex data to printer (for testing)."""
 
     async def _raw():
-        printer = P31Printer()
+        printer = P31SPrinter()
         printer.set_debug(True)  # Always debug for raw commands
 
         try:
