@@ -93,6 +93,39 @@ p31/
 └── tests/               # Unit tests
 ```
 
+## Testing
+
+### Unit Tests
+
+Run unit tests (no hardware required):
+
+```bash
+# Install test dependencies
+pip install -e ".[dev]"
+pip install pytest-asyncio
+
+# Run unit tests only
+pytest tests/ -m "not hardware"
+```
+
+### Integration Tests (Hardware Required)
+
+Integration tests require a real P31S printer connected via Bluetooth:
+
+```bash
+# First, find your printer's address
+p31s scan
+
+# Run all tests including hardware tests
+pytest tests/ -m hardware --address=XX:XX:XX:XX:XX:XX
+
+# Run specific test categories
+pytest tests/test_integration.py -m hardware --address=XX:XX:XX:XX:XX:XX -k "TestConnection"
+pytest tests/test_integration.py -m hardware --address=XX:XX:XX:XX:XX:XX -k "TestPrint"
+```
+
+**Warning:** Print tests (`TestPrint`) will actually print labels. Make sure you have paper loaded.
+
 ## Protocol Documentation
 
 See [docs/protocol.md](docs/protocol.md) for the complete protocol specification.

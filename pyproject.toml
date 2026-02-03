@@ -28,3 +28,12 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "hardware: marks tests that require real printer hardware (deselect with '-m \"not hardware\"')",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
