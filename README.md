@@ -1,5 +1,7 @@
 # P31S Label Printer Driver
 
+[![CI](https://github.com/olofj/p31s/actions/workflows/ci.yml/badge.svg)](https://github.com/olofj/p31s/actions/workflows/ci.yml)
+
 Open-source Linux/macOS driver for the **POLONO P31S** thermal label printer.
 
 ## About the P31S
