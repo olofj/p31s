@@ -17,6 +17,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "pip-audit>=2.6.0",
 ]
 barcodes = [
     "python-barcode>=0.15.0",
