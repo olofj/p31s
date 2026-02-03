@@ -80,8 +80,8 @@ class P31SPrinter:
         Initialize printer interface.
 
         Args:
-            label_width_mm: Label width in millimeters (default 40mm)
-            label_height_mm: Label height in millimeters (default 10mm)
+            label_width_mm: Label width in millimeters (default 14mm)
+            label_height_mm: Label height in millimeters (default 40mm)
             gap_mm: Gap between labels in millimeters (default 2mm)
         """
         self.connection = BLEConnection()
