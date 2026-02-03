@@ -31,17 +31,35 @@ from p31s.connection import BLEConnection
 
 
 def parse_smartctl_text(content: str) -> dict | None:
-    """Parse a single smartctl output block and extract drive info."""
-    # Extract vendor
+    """Parse a single smartctl output block and extract drive info.
+
+    Handles both SCSI/SAS format (Vendor/Product) and ATA/SATA format (Device Model).
+    """
+    vendor = ""
+    product = ""
+
+    # Try SCSI format first (Vendor + Product)
     vendor_match = re.search(r'^Vendor:\s+(.+)$', content, re.MULTILINE)
-    vendor = vendor_match.group(1).strip() if vendor_match else ""
-
-    # Extract product/model
     product_match = re.search(r'^Product:\s+(.+)$', content, re.MULTILINE)
-    product = product_match.group(1).strip() if product_match else ""
 
-    # Extract serial number
-    serial_match = re.search(r'^Serial number:\s+(.+)$', content, re.MULTILINE)
+    if vendor_match and product_match:
+        vendor = vendor_match.group(1).strip()
+        product = product_match.group(1).strip()
+    else:
+        # Try ATA format (Device Model contains both vendor and model)
+        model_match = re.search(r'^Device Model:\s+(.+)$', content, re.MULTILINE)
+        if model_match:
+            device_model = model_match.group(1).strip()
+            # Try to split vendor from model (first word is often vendor)
+            parts = device_model.split(None, 1)
+            if len(parts) == 2:
+                vendor = parts[0]
+                product = parts[1]
+            else:
+                product = device_model
+
+    # Extract serial number (case-insensitive for 'number')
+    serial_match = re.search(r'^Serial [Nn]umber:\s+(.+)$', content, re.MULTILINE)
     serial = serial_match.group(1).strip() if serial_match else ""
 
     # Extract capacity - look for the human-readable format like [8.00 TB]
