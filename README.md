@@ -4,6 +4,8 @@
 
 Open-source Linux/macOS driver for the **POLONO P31S** thermal label printer.
 
+![P31S printing hard drive labels](docs/printing.jpg)
+
 ## About the P31S
 
 The POLONO P31S is a compact, battery-powered thermal label printer designed for portable use. It prints on small 14×40mm adhesive label stickers, making it ideal for organizing cables, labeling storage containers, price tags, or any application requiring small durable labels.
