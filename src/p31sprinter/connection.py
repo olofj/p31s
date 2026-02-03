@@ -37,6 +37,10 @@ class BLEConnection:
     # Known device name patterns
     DEVICE_PATTERNS = ["P31", "POLONO", "MAKEID", "NIIMBOT", "LABEL"]
 
+    # Response queue limits (security: prevent memory exhaustion from malicious devices)
+    MAX_QUEUE_SIZE = 100  # Maximum number of queued notifications
+    MAX_RESPONSE_SIZE = 4096  # Maximum size of a single notification (bytes)
+
     # Primary service/characteristic UUIDs (discovered from Labelnize APK)
     PRIMARY_SERVICE = "0000ff00-0000-1000-8000-00805f9b34fb"
     CHAR_READ = "0000ff01-0000-1000-8000-00805f9b34fb"
@@ -139,6 +143,17 @@ class BLEConnection:
 
     def _handle_notification(self, sender: BleakGATTCharacteristic, data: bytearray):
         """Handle incoming notifications from the printer."""
+        # Security: reject oversized responses
+        if len(data) > self.MAX_RESPONSE_SIZE:
+            return
+
+        # Security: if queue is full, drop oldest item to prevent memory exhaustion
+        if self._response_queue.qsize() >= self.MAX_QUEUE_SIZE:
+            try:
+                self._response_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+
         self._response_queue.put_nowait(bytes(data))
 
         if self._notification_callback:
