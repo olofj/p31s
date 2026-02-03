@@ -107,9 +107,11 @@ async def scan_and_select(timeout: float = 10.0) -> Optional[str]:
         return _get_connect_address(printer)
 
     # Multiple printers - show numbered menu
-    click.echo(f"\nFound {len(printers)} printer(s):\n")
+    click.echo(f"\nFound {len(printers)} printer(s):")
+    click.echo("(sorted by signal strength)\n")
     for i, p in enumerate(printers, 1):
-        click.echo(f"  [{i}] {p}")
+        suffix = " (strongest)" if i == 1 else ""
+        click.echo(f"  [{i}] {p}{suffix}")
 
     # Prompt for selection
     click.echo()
@@ -169,9 +171,11 @@ def scan(timeout, no_auto):
             click.echo(f"Address: {_format_printer_address(printer)}")
             return
 
-        click.echo(f"\nFound {len(printers)} printer(s):\n")
-        for p in printers:
-            click.echo(f"  {p}")
+        click.echo(f"\nFound {len(printers)} printer(s):")
+        click.echo("(sorted by signal strength)\n")
+        for i, p in enumerate(printers):
+            suffix = " (strongest)" if i == 0 else ""
+            click.echo(f"  {p}{suffix}")
 
     asyncio.run(_scan())
 

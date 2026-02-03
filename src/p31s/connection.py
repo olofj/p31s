@@ -14,6 +14,27 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 
 
+def rssi_to_bar(rssi: int, width: int = 5) -> str:
+    """Convert RSSI value to visual signal strength bar.
+
+    RSSI ranges: -30 to -50 excellent, -50 to -70 good, below -70 weak.
+    Maps -30 dB (max) to full bars, -90 dB (min) to empty bars.
+
+    Args:
+        rssi: Signal strength in dB (typically -30 to -100)
+        width: Number of bar segments (default 5)
+
+    Returns:
+        String like "████░" representing signal strength
+    """
+    # Clamp RSSI to reasonable range
+    rssi_clamped = max(-90, min(-30, rssi))
+    # Map -30 to 1.0, -90 to 0.0
+    strength = (rssi_clamped + 90) / 60
+    filled = round(strength * width)
+    return "█" * filled + "░" * (width - filled)
+
+
 @dataclass
 class PrinterInfo:
     """Information about a discovered printer.
@@ -35,13 +56,14 @@ class PrinterInfo:
     mac_address: Optional[str] = None
 
     def __str__(self) -> str:
+        bar = rssi_to_bar(self.rssi)
         if self.mac_address and self.mac_address != self.address:
             # macOS case: show MAC prominently, UUID secondary
             return (
-                f"{self.name} [{self.mac_address}] RSSI: {self.rssi} dB\n"
+                f"{self.name} [{self.mac_address}] {bar} {self.rssi} dB\n"
                 f"            (macOS UUID: {self.address})"
             )
-        return f"{self.name} [{self.address}] RSSI: {self.rssi} dB"
+        return f"{self.name} [{self.address}] {bar} {self.rssi} dB"
 
 
 @dataclass

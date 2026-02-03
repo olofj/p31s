@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from p31s.connection import BLEConnection, PrinterInfo
+from p31s.connection import BLEConnection, PrinterInfo, rssi_to_bar
 
 
 class TestNotificationSizeLimits:
@@ -128,7 +128,11 @@ class TestPrinterInfo:
             mac_address="AA:BB:CC:DD:EE:FF",
         )
         result = str(info)
-        assert result == "P31S-1234 [AA:BB:CC:DD:EE:FF] RSSI: -45 dB"
+        # Check signal bar is present (mix of filled/empty blocks)
+        assert "█" in result or "░" in result
+        assert "P31S-1234" in result
+        assert "AA:BB:CC:DD:EE:FF" in result
+        assert "-45 dB" in result
 
     def test_str_with_different_mac_and_address(self):
         """PrinterInfo string shows MAC prominently with UUID secondary on macOS."""
@@ -154,6 +158,43 @@ class TestPrinterInfo:
         result = str(info)
         assert "8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D" in result
         assert "macOS UUID:" not in result
+
+
+class TestRssiToBar:
+    """Tests for RSSI to visual bar conversion."""
+
+    def test_excellent_signal_full_bars(self):
+        """Excellent signal (-30 dB) shows full bars."""
+        bar = rssi_to_bar(-30)
+        assert bar == "█████"
+
+    def test_weak_signal_empty_bars(self):
+        """Weak signal (-90 dB) shows empty bars."""
+        bar = rssi_to_bar(-90)
+        assert bar == "░░░░░"
+
+    def test_medium_signal_partial_bars(self):
+        """Medium signal (-60 dB) shows partial bars."""
+        bar = rssi_to_bar(-60)
+        # -60 is halfway between -90 and -30, so ~half filled
+        assert bar.count("█") >= 2
+        assert bar.count("░") >= 1
+
+    def test_clamps_stronger_than_max(self):
+        """Signal stronger than -30 dB clamps to full bars."""
+        bar = rssi_to_bar(-20)
+        assert bar == "█████"
+
+    def test_clamps_weaker_than_min(self):
+        """Signal weaker than -90 dB clamps to empty bars."""
+        bar = rssi_to_bar(-100)
+        assert bar == "░░░░░"
+
+    def test_custom_width(self):
+        """Custom width produces correct number of segments."""
+        bar = rssi_to_bar(-30, width=10)
+        assert len(bar) == 10
+        assert bar == "██████████"
 
 
 class TestMacExtraction:
