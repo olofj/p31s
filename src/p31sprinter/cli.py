@@ -561,6 +561,14 @@ def qr(ctx, data, address, size, error_correction, density, copies, retry):
             click.echo(f"Invalid QR data: {e}", err=True)
             sys.exit(1)
 
+        # Scale down if QR exceeds printable width (96 pixels)
+        max_width = 96
+        if img.width > max_width:
+            scale = max_width / img.width
+            new_size = (int(img.width * scale), int(img.height * scale))
+            click.echo(f"Scaling QR from {img.width}x{img.height} to {new_size[0]}x{new_size[1]} to fit label...")
+            img = img.resize(new_size, resample=0)  # 0=NEAREST for sharp pixels
+
         printer = P31SPrinter()
         printer.set_debug(ctx.obj["debug"])
 
