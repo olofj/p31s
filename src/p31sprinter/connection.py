@@ -5,6 +5,7 @@ Handles Bluetooth Low Energy communication using the Bleak library.
 """
 
 import asyncio
+import platform
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -15,12 +16,30 @@ from bleak.backends.device import BLEDevice
 
 @dataclass
 class PrinterInfo:
-    """Information about a discovered printer."""
+    """Information about a discovered printer.
+
+    Attributes:
+        name: Device advertised name (e.g., "P31S-1234")
+        address: Platform-specific identifier for connecting:
+            - MAC address (XX:XX:XX:XX:XX:XX) on Linux/Windows
+            - UUID on macOS (CoreBluetooth privacy feature)
+        mac_address: Actual MAC address if extractable from advertisement data.
+            On Linux/Windows, this matches address. On macOS, this may be
+            extracted from manufacturer data if the device broadcasts it.
+        rssi: Signal strength in dB
+    """
     name: str
     address: str
     rssi: int
+    mac_address: Optional[str] = None
 
     def __str__(self) -> str:
+        if self.mac_address and self.mac_address != self.address:
+            # macOS case: show MAC prominently, UUID secondary
+            return (
+                f"{self.name} [{self.mac_address}] RSSI: {self.rssi} dB\n"
+                f"            (macOS UUID: {self.address})"
+            )
         return f"{self.name} [{self.address}] RSSI: {self.rssi} dB"
 
 
@@ -68,19 +87,82 @@ class BLEConnection:
         self._response_queue: asyncio.Queue = asyncio.Queue()
         self._notification_callback: Optional[Callable] = None
 
+    @staticmethod
+    def _is_macos() -> bool:
+        """Check if running on macOS."""
+        return platform.system() == "Darwin"
+
+    @staticmethod
+    def _extract_mac_from_manufacturer_data(
+        manufacturer_data: dict[int, bytes]
+    ) -> Optional[str]:
+        """Extract MAC address from manufacturer data if present.
+
+        Many Chinese BLE devices embed their MAC address in the manufacturer
+        data, typically as 6 bytes (sometimes reversed).
+
+        Args:
+            manufacturer_data: Dict mapping company ID to data bytes
+
+        Returns:
+            MAC address in XX:XX:XX:XX:XX:XX format, or None if not found
+        """
+        for company_id, data in manufacturer_data.items():
+            # MAC is often in the first 6 bytes or last 6 bytes
+            if len(data) >= 6:
+                # Try first 6 bytes (common pattern)
+                mac_bytes = data[:6]
+                mac = ":".join(f"{b:02X}" for b in mac_bytes)
+                # Validate it looks like a real MAC (not all zeros/ones)
+                if mac != "00:00:00:00:00:00" and mac != "FF:FF:FF:FF:FF:FF":
+                    return mac
+
+                # Try last 6 bytes (alternative pattern)
+                if len(data) > 6:
+                    mac_bytes = data[-6:]
+                    mac = ":".join(f"{b:02X}" for b in mac_bytes)
+                    if mac != "00:00:00:00:00:00" and mac != "FF:FF:FF:FF:FF:FF":
+                        return mac
+
+                # Try reversed (some devices use little-endian)
+                mac_bytes = data[:6][::-1]
+                mac = ":".join(f"{b:02X}" for b in mac_bytes)
+                if mac != "00:00:00:00:00:00" and mac != "FF:FF:FF:FF:FF:FF":
+                    return mac
+
+        return None
+
     @classmethod
     async def scan(cls, timeout: float = 10.0) -> list[PrinterInfo]:
-        """Scan for P31S printers."""
+        """Scan for P31S printers.
+
+        On macOS, attempts to extract real MAC addresses from advertisement
+        data since CoreBluetooth returns UUIDs instead of MAC addresses.
+        """
         printers = []
         devices = await BleakScanner.discover(timeout=timeout, return_adv=True)
+        is_macos = cls._is_macos()
 
         for device, adv_data in devices.values():
-            name = device.name or ""
+            name = device.name or adv_data.local_name or ""
             if any(pattern.upper() in name.upper() for pattern in cls.DEVICE_PATTERNS):
+                mac_address: Optional[str] = None
+
+                if is_macos:
+                    # On macOS, device.address is a UUID, try to extract real MAC
+                    if adv_data.manufacturer_data:
+                        mac_address = cls._extract_mac_from_manufacturer_data(
+                            adv_data.manufacturer_data
+                        )
+                else:
+                    # On Linux/Windows, device.address is already the MAC
+                    mac_address = device.address
+
                 printers.append(PrinterInfo(
                     name=name,
                     address=device.address,
-                    rssi=adv_data.rssi if adv_data.rssi is not None else -100
+                    rssi=adv_data.rssi if adv_data.rssi is not None else -100,
+                    mac_address=mac_address,
                 ))
 
         return sorted(printers, key=lambda p: p.rssi, reverse=True)

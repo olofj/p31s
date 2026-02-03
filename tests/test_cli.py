@@ -8,6 +8,8 @@ from p31sprinter.cli import (
     validate_bluetooth_address,
     scan_and_select,
     BLUETOOTH_MAC_PATTERN,
+    _get_connect_address,
+    _format_printer_address,
 )
 
 
@@ -357,4 +359,145 @@ class TestInteractiveSelection:
         assert result.exit_code == 0
         # Should not scan, should go straight to connect
         assert "Scanning" not in result.output
+        assert "Connecting to AA:BB:CC:DD:EE:FF" in result.output
+
+
+class TestMacAddressHelpers:
+    """Test MAC address helper functions."""
+
+    def test_get_connect_address_prefers_mac(self):
+        """_get_connect_address returns MAC address when available."""
+        from p31sprinter.connection import PrinterInfo
+
+        info = PrinterInfo(
+            name="P31S-1234",
+            address="8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D",
+            rssi=-45,
+            mac_address="AA:BB:CC:DD:EE:FF",
+        )
+        assert _get_connect_address(info) == "AA:BB:CC:DD:EE:FF"
+
+    def test_get_connect_address_fallback_to_address(self):
+        """_get_connect_address falls back to address when MAC is None."""
+        from p31sprinter.connection import PrinterInfo
+
+        info = PrinterInfo(
+            name="P31S-1234",
+            address="8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D",
+            rssi=-45,
+            mac_address=None,
+        )
+        assert _get_connect_address(info) == "8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D"
+
+    def test_format_printer_address_shows_mac_with_uuid(self):
+        """_format_printer_address shows MAC with UUID on macOS."""
+        from p31sprinter.connection import PrinterInfo
+
+        info = PrinterInfo(
+            name="P31S-1234",
+            address="8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D",
+            rssi=-45,
+            mac_address="AA:BB:CC:DD:EE:FF",
+        )
+        result = _format_printer_address(info)
+        assert "AA:BB:CC:DD:EE:FF" in result
+        assert "macOS UUID:" in result
+        assert "8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D" in result
+
+    def test_format_printer_address_simple_when_same(self):
+        """_format_printer_address shows simple format when MAC equals address."""
+        from p31sprinter.connection import PrinterInfo
+
+        info = PrinterInfo(
+            name="P31S-1234",
+            address="AA:BB:CC:DD:EE:FF",
+            rssi=-45,
+            mac_address="AA:BB:CC:DD:EE:FF",
+        )
+        result = _format_printer_address(info)
+        assert result == "AA:BB:CC:DD:EE:FF"
+        assert "macOS UUID:" not in result
+
+    def test_format_printer_address_fallback_when_no_mac(self):
+        """_format_printer_address shows address when MAC is None."""
+        from p31sprinter.connection import PrinterInfo
+
+        info = PrinterInfo(
+            name="P31S-1234",
+            address="8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D",
+            rssi=-45,
+            mac_address=None,
+        )
+        result = _format_printer_address(info)
+        assert result == "8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D"
+
+
+class TestScanWithMacAddresses:
+    """Test scan command output with MAC addresses on macOS."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create CLI test runner."""
+        return CliRunner()
+
+    def test_scan_shows_mac_on_macos(self, runner, monkeypatch):
+        """Test scan shows extracted MAC address on macOS."""
+        from p31sprinter.connection import PrinterInfo
+        import p31sprinter.cli
+
+        # Simulate macOS with extracted MAC
+        mock_printers = [
+            PrinterInfo(
+                name="POLONO P31S",
+                address="8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D",
+                rssi=-50,
+                mac_address="AA:BB:CC:DD:EE:FF",
+            )
+        ]
+
+        async def mock_scan(timeout=10.0):
+            return mock_printers
+
+        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+
+        result = runner.invoke(main, ["scan", "--timeout", "1"])
+        assert result.exit_code == 0
+        assert "AA:BB:CC:DD:EE:FF" in result.output
+        assert "macOS UUID:" in result.output
+
+    def test_scan_uses_mac_for_auto_select(self, runner, monkeypatch):
+        """Test auto-select uses MAC address when available."""
+        from p31sprinter.connection import PrinterInfo
+        import p31sprinter.cli
+
+        mock_printers = [
+            PrinterInfo(
+                name="POLONO P31S",
+                address="8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D",
+                rssi=-50,
+                mac_address="AA:BB:CC:DD:EE:FF",
+            )
+        ]
+
+        async def mock_scan(timeout=10.0):
+            return mock_printers
+
+        async def mock_connect(self, address, *args, **kwargs):
+            # Verify we're connecting with the MAC address, not UUID
+            assert address == "AA:BB:CC:DD:EE:FF"
+            return True
+
+        async def mock_print_test(self, *args, **kwargs):
+            return True
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "print_test_pattern", mock_print_test)
+        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(main, ["test"])
+        assert result.exit_code == 0
         assert "Connecting to AA:BB:CC:DD:EE:FF" in result.output

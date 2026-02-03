@@ -13,7 +13,7 @@ from .printer import (
     MAX_IMAGE_PIXELS,
 )
 from .image import ImageSizeError
-from .connection import BLEConnection
+from .connection import BLEConnection, PrinterInfo
 from .tspl import TSPLCommand, LabelSize, Density, BitmapMode
 from .tspl_commands import TSPLCommands
 from .responses import PrinterConfig, BatteryStatus, ChunkSize, PrintedCount
@@ -29,6 +29,7 @@ __all__ = [
     "MAX_IMAGE_DIMENSION",
     "MAX_IMAGE_PIXELS",
     "BLEConnection",
+    "PrinterInfo",
     "TSPLCommand",
     "LabelSize",
     "Density",

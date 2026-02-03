@@ -67,6 +67,23 @@ def validate_bluetooth_address(ctx, param, value):
     )
 
 
+def _get_connect_address(printer) -> str:
+    """Get the address to use for connecting to a printer.
+
+    Returns the MAC address if available (preferred), otherwise the
+    platform-specific address (UUID on macOS, MAC on Linux/Windows).
+    """
+    return printer.mac_address or printer.address
+
+
+def _format_printer_address(printer) -> str:
+    """Format printer address info for display."""
+    if printer.mac_address and printer.mac_address != printer.address:
+        # macOS with extracted MAC
+        return f"{printer.mac_address} (macOS UUID: {printer.address})"
+    return printer.address
+
+
 async def scan_and_select(timeout: float = 10.0) -> Optional[str]:
     """Scan for printers and let user select one interactively.
 
@@ -87,8 +104,8 @@ async def scan_and_select(timeout: float = 10.0) -> Optional[str]:
     if len(printers) == 1:
         printer = printers[0]
         click.echo(f"Found 1 printer: {printer.name} - using automatically")
-        click.echo(f"Address: {printer.address}")
-        return printer.address
+        click.echo(f"Address: {_format_printer_address(printer)}")
+        return _get_connect_address(printer)
 
     # Multiple printers - show numbered menu
     click.echo(f"\nFound {len(printers)} printer(s):\n")
@@ -103,7 +120,7 @@ async def scan_and_select(timeout: float = 10.0) -> Optional[str]:
             if 1 <= choice <= len(printers):
                 selected = printers[choice - 1]
                 click.echo(f"Selected: {selected.name}")
-                return selected.address
+                return _get_connect_address(selected)
             click.echo(f"Please enter a number between 1 and {len(printers)}", err=True)
         except click.Abort:
             return None
@@ -145,7 +162,7 @@ def scan(timeout, no_auto):
         if len(printers) == 1 and not no_auto:
             printer = printers[0]
             click.echo(f"\nFound 1 printer: {printer.name} - using automatically")
-            click.echo(f"Address: {printer.address}")
+            click.echo(f"Address: {_format_printer_address(printer)}")
             return
 
         click.echo(f"\nFound {len(printers)} printer(s):\n")
