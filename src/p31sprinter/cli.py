@@ -13,7 +13,13 @@ import sys
 
 import click
 
-from .printer import P31SPrinter
+from .printer import (
+    P31SPrinter,
+    PrinterError,
+    ConnectionError,
+    PrintError,
+    ImageError,
+)
 from .tspl import Density
 
 
@@ -89,8 +95,9 @@ def discover(ctx, address):
     help="Print density (0-15, default 8)",
 )
 @click.option("--copies", default=1, help="Number of copies")
+@click.option("--retry", default=0, help="Number of retries for transient failures")
 @click.pass_context
-def print_image(ctx, address, image, density, copies):
+def print_image(ctx, address, image, density, copies, retry):
     """Print an image file."""
 
     async def _print():
@@ -99,16 +106,17 @@ def print_image(ctx, address, image, density, copies):
 
         click.echo(f"Connecting to {address}...")
 
-        if not await printer.connect(address):
-            click.echo("Failed to connect!", err=True)
-            sys.exit(1)
-
         try:
+            if not await printer.connect(address, retries=retry):
+                click.echo("Failed to connect!", err=True)
+                sys.exit(1)
+
             click.echo(f"Printing {image}...")
             success = await printer.print_image(
                 image,
                 density=Density(density),
                 copies=copies,
+                retries=retry,
             )
 
             if success:
@@ -116,6 +124,19 @@ def print_image(ctx, address, image, density, copies):
             else:
                 click.echo("Print failed!", err=True)
                 sys.exit(1)
+
+        except ConnectionError as e:
+            click.echo(f"Connection error: {e}", err=True)
+            sys.exit(1)
+        except ImageError as e:
+            click.echo(f"Image error: {e}", err=True)
+            sys.exit(1)
+        except PrintError as e:
+            click.echo(f"Print error: {e}", err=True)
+            sys.exit(1)
+        except PrinterError as e:
+            click.echo(f"Printer error: {e}", err=True)
+            sys.exit(1)
         finally:
             await printer.disconnect()
 
@@ -124,8 +145,9 @@ def print_image(ctx, address, image, density, copies):
 
 @main.command()
 @click.argument("address")
+@click.option("--retry", default=0, help="Number of retries for transient failures")
 @click.pass_context
-def test(ctx, address):
+def test(ctx, address, retry):
     """Print a test pattern."""
 
     async def _test():
@@ -134,19 +156,29 @@ def test(ctx, address):
 
         click.echo(f"Connecting to {address}...")
 
-        if not await printer.connect(address):
-            click.echo("Failed to connect!", err=True)
-            sys.exit(1)
-
         try:
+            if not await printer.connect(address, retries=retry):
+                click.echo("Failed to connect!", err=True)
+                sys.exit(1)
+
             click.echo("Printing test pattern...")
-            success = await printer.print_test_pattern()
+            success = await printer.print_test_pattern(retries=retry)
 
             if success:
                 click.echo("Test print complete!")
             else:
                 click.echo("Test print failed!", err=True)
                 sys.exit(1)
+
+        except ConnectionError as e:
+            click.echo(f"Connection error: {e}", err=True)
+            sys.exit(1)
+        except PrintError as e:
+            click.echo(f"Print error: {e}", err=True)
+            sys.exit(1)
+        except PrinterError as e:
+            click.echo(f"Printer error: {e}", err=True)
+            sys.exit(1)
         finally:
             await printer.disconnect()
 

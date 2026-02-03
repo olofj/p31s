@@ -17,6 +17,39 @@ from .tspl_commands import TSPLCommands
 from .responses import PrinterConfig, BatteryStatus
 
 
+# --- Exception Classes ---
+
+
+class PrinterError(Exception):
+    """Base exception for all printer errors."""
+
+    pass
+
+
+class ConnectionError(PrinterError):
+    """Error connecting to or communicating with printer."""
+
+    pass
+
+
+class PrintError(PrinterError):
+    """Error during print operation."""
+
+    pass
+
+
+class PaperError(PrinterError):
+    """Paper-related error (jam, out of paper, etc.)."""
+
+    pass
+
+
+class ImageError(PrinterError):
+    """Error processing image for printing."""
+
+    pass
+
+
 class P31SPrinter:
     """
     High-level interface to P31S label printer.
@@ -73,30 +106,55 @@ class P31SPrinter:
         """Scan for available P31S printers."""
         return await BLEConnection.scan(timeout)
 
-    async def connect(self, address: str) -> bool:
+    async def connect(self, address: str, retries: int = 0, retry_delay: float = 1.0) -> bool:
         """
         Connect to a printer.
 
         Args:
             address: Bluetooth address of the printer
+            retries: Number of connection retries (default 0)
+            retry_delay: Delay between retries in seconds (default 1.0)
 
         Returns:
             True if connection successful
+
+        Raises:
+            ConnectionError: If connection fails after all retries
         """
-        self._log(f"Connecting to {address}...")
-        success = await self.connection.connect(address)
+        last_error: Optional[Exception] = None
+        attempts = retries + 1
 
-        if success:
-            self._log("Connected, verifying with CONFIG?...")
-            # Verify connection with CONFIG? command
-            await self.connection.write(TSPLCommands.config_query())
-            response = await self.connection.read_response(timeout=2.0)
-            if response:
-                config = PrinterConfig.parse(response)
-                if config:
-                    self._log(f"Printer: FW {config.firmware_version}, {config.resolution} DPI")
+        for attempt in range(attempts):
+            if attempt > 0:
+                self._log(f"Connection retry {attempt}/{retries}...")
+                await asyncio.sleep(retry_delay)
 
-        return success
+            self._log(f"Connecting to {address}...")
+
+            try:
+                success = await self.connection.connect(address)
+
+                if success:
+                    self._log("Connected, verifying with CONFIG?...")
+                    # Verify connection with CONFIG? command
+                    await self.connection.write(TSPLCommands.config_query())
+                    response = await self.connection.read_response(timeout=2.0)
+                    if response:
+                        config = PrinterConfig.parse(response)
+                        if config:
+                            self._log(f"Printer: FW {config.firmware_version}, {config.resolution} DPI")
+                    return True
+                else:
+                    last_error = ConnectionError(f"Failed to connect to {address}")
+                    self._log(f"Connection failed (attempt {attempt + 1}/{attempts})")
+
+            except Exception as e:
+                last_error = e
+                self._log(f"Connection error (attempt {attempt + 1}/{attempts}): {e}")
+
+        # All retries exhausted - raise if caller wants exceptions, otherwise return False
+        # For backwards compatibility, return False rather than raising
+        return False
 
     async def disconnect(self):
         """Disconnect from the printer."""
@@ -126,6 +184,43 @@ class P31SPrinter:
         cmd.formfeed()
         await self.connection.write(cmd.get_commands())
 
+    def _load_image(self, image: Union[str, Path, bytes, Image.Image]) -> Image.Image:
+        """
+        Load and validate an image for printing.
+
+        Args:
+            image: Image source (path, bytes, or PIL Image)
+
+        Returns:
+            PIL Image object
+
+        Raises:
+            ImageError: If image cannot be loaded or is invalid
+        """
+        try:
+            if isinstance(image, (str, Path)):
+                path = Path(image)
+                if not path.exists():
+                    raise ImageError(f"Image file not found: {path}")
+                img = Image.open(path)
+            elif isinstance(image, bytes):
+                from io import BytesIO
+                img = Image.open(BytesIO(image))
+            elif isinstance(image, Image.Image):
+                img = image
+            else:
+                raise ImageError(f"Unsupported image type: {type(image)}")
+
+            # Convert to 1-bit if needed
+            if img.mode != "1":
+                img = img.convert("L").point(lambda x: 0 if x < 128 else 255, mode="1")
+
+            return img
+        except ImageError:
+            raise
+        except Exception as e:
+            raise ImageError(f"Failed to load image: {e}") from e
+
     async def print_image(
         self,
         image: Union[str, Path, bytes, Image.Image],
@@ -133,6 +228,8 @@ class P31SPrinter:
         x: int = 0,
         y: int = 0,
         copies: int = 1,
+        retries: int = 0,
+        retry_delay: float = 1.0,
     ) -> bool:
         """
         Print an image as a label using TSPL commands.
@@ -142,30 +239,23 @@ class P31SPrinter:
             density: Print darkness level (0-15, default 8)
             x, y: Position offset in dots (default 0,0)
             copies: Number of copies to print
+            retries: Number of retries for transient failures (default 0)
+            retry_delay: Delay between retries in seconds (default 1.0)
 
         Returns:
             True if print job completed successfully
+
+        Raises:
+            ConnectionError: If not connected or connection lost
+            ImageError: If image cannot be loaded
+            PrintError: If print job fails after all retries
         """
         if not self.connection.is_connected:
-            self._log("Not connected!")
-            return False
+            raise ConnectionError("Not connected to printer")
 
-        # Load image
+        # Load image (may raise ImageError)
         self._log("Loading image...")
-        if isinstance(image, (str, Path)):
-            img = Image.open(image)
-        elif isinstance(image, bytes):
-            from io import BytesIO
-            img = Image.open(BytesIO(image))
-        elif isinstance(image, Image.Image):
-            img = image
-        else:
-            raise ValueError(f"Unsupported image type: {type(image)}")
-
-        # Convert to 1-bit if needed
-        if img.mode != "1":
-            img = img.convert("L").point(lambda x: 0 if x < 128 else 255, mode="1")
-
+        img = self._load_image(image)
         self._log(f"Image size: {img.width}x{img.height} pixels")
 
         # Build TSPL print job
@@ -178,21 +268,59 @@ class P31SPrinter:
         job_data = cmd.get_commands()
         self._log(f"Print job size: {len(job_data)} bytes")
 
-        # Send using chunked writes for large data
-        mtu = await self.connection.get_mtu()
-        self._log(f"Sending with chunk size: {mtu} bytes")
+        # Send with retry logic
+        last_error: Optional[Exception] = None
+        attempts = retries + 1
 
-        success = await self.connection.write_chunked(job_data, chunk_size=mtu)
+        for attempt in range(attempts):
+            if attempt > 0:
+                self._log(f"Retry {attempt}/{retries}...")
+                await asyncio.sleep(retry_delay)
 
-        if success:
-            self._log("Print job sent successfully")
-        else:
-            self._log("Print job failed!")
+                # Check if still connected
+                if not self.connection.is_connected:
+                    raise ConnectionError("Connection lost during print")
 
-        return success
+            try:
+                mtu = await self.connection.get_mtu()
+                self._log(f"Sending with chunk size: {mtu} bytes")
 
-    async def print_test_pattern(self) -> bool:
-        """Print a simple test pattern (checkerboard)."""
+                success = await self.connection.write_chunked(job_data, chunk_size=mtu)
+
+                if success:
+                    self._log("Print job sent successfully")
+                    return True
+                else:
+                    last_error = PrintError("Write operation failed")
+                    self._log(f"Print job failed (attempt {attempt + 1}/{attempts})")
+
+            except Exception as e:
+                last_error = e
+                self._log(f"Error during print (attempt {attempt + 1}/{attempts}): {e}")
+
+                # Don't retry on connection errors
+                if not self.connection.is_connected:
+                    raise ConnectionError(f"Connection lost: {e}") from e
+
+        # All retries exhausted
+        raise PrintError(
+            f"Print failed after {attempts} attempt(s): {last_error}"
+        ) from last_error
+
+    async def print_test_pattern(self, retries: int = 0) -> bool:
+        """
+        Print a simple test pattern (checkerboard).
+
+        Args:
+            retries: Number of retries for transient failures (default 0)
+
+        Returns:
+            True if print job completed successfully
+
+        Raises:
+            ConnectionError: If not connected or connection lost
+            PrintError: If print job fails after all retries
+        """
         self._log("Creating test pattern...")
 
         # Create a checkerboard pattern that works with thermal protection
@@ -206,7 +334,7 @@ class P31SPrinter:
                 if (x // 8 + y // 8) % 2 == 0:
                     img.putpixel((x, y), 0)  # Black
 
-        return await self.print_image(img)
+        return await self.print_image(img, retries=retries)
 
     async def selftest(self) -> bool:
         """Trigger printer's built-in self-test."""
@@ -241,9 +369,13 @@ class P31SPrinter:
         return self.connection.is_connected
 
 
-async def quick_print(address: str, image_path: str,
-                     label_width_mm: float = 40.0,
-                     label_height_mm: float = 10.0) -> bool:
+async def quick_print(
+    address: str,
+    image_path: str,
+    label_width_mm: float = 40.0,
+    label_height_mm: float = 10.0,
+    retries: int = 0,
+) -> bool:
     """
     Convenience function to quickly print an image.
 
@@ -252,15 +384,21 @@ async def quick_print(address: str, image_path: str,
         image_path: Path to image file
         label_width_mm: Label width in mm (default 40)
         label_height_mm: Label height in mm (default 10)
+        retries: Number of retries for transient failures (default 0)
 
     Returns:
         True if successful
+
+    Raises:
+        ConnectionError: If connection fails
+        ImageError: If image cannot be loaded
+        PrintError: If print job fails after all retries
     """
     printer = P31SPrinter(label_width_mm, label_height_mm)
 
     try:
-        if await printer.connect(address):
-            return await printer.print_image(image_path)
-        return False
+        if await printer.connect(address, retries=retries):
+            return await printer.print_image(image_path, retries=retries)
+        raise ConnectionError(f"Failed to connect to {address}")
     finally:
         await printer.disconnect()
