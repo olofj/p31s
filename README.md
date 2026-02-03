@@ -55,6 +55,20 @@ p31s print XX:XX:XX:XX:XX:XX image.png --density 12 --copies 2
 p31s test XX:XX:XX:XX:XX:XX
 ```
 
+### Raw Command (Debugging Only)
+
+The `raw` command sends arbitrary hex data directly to the printer for debugging purposes:
+
+```bash
+p31s raw XX:XX:XX:XX:XX:XX "1b21"
+```
+
+**⚠️ Security Warning:** This command bypasses all safety checks and can send arbitrary TSPL commands. Incorrect use may misconfigure or damage your printer. Use `--force` to skip the confirmation prompt:
+
+```bash
+p31s raw XX:XX:XX:XX:XX:XX "1b21" --force
+```
+
 ## Library Usage
 
 ```python

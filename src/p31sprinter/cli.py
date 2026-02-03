@@ -189,9 +189,29 @@ def test(ctx, address, retry):
 @main.command()
 @click.argument("address")
 @click.argument("hex_data")
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Acknowledge security risks and skip warning prompt",
+)
 @click.pass_context
-def raw(ctx, address, hex_data):
-    """Send raw hex data to printer (for testing)."""
+def raw(ctx, address, hex_data, force):
+    """Send raw hex data to printer (for debugging/testing).
+
+    WARNING: This command bypasses all safety checks and can potentially
+    misconfigure or damage your printer. Only use if you understand TSPL
+    protocol commands.
+    """
+    if not force:
+        click.echo(
+            "WARNING: Raw mode bypasses all safety checks and sends arbitrary "
+            "data directly to the printer. This can potentially misconfigure "
+            "or damage your printer.",
+            err=True,
+        )
+        if not click.confirm("Do you want to continue?"):
+            click.echo("Aborted.")
+            return
 
     async def _raw():
         printer = P31SPrinter()
