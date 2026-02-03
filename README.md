@@ -2,6 +2,20 @@
 
 Open-source Linux/macOS driver for the **POLONO P31S** thermal label printer.
 
+## About the P31S
+
+The POLONO P31S is a compact, battery-powered thermal label printer designed for portable use. It prints on small 14×40mm adhesive label stickers, making it ideal for organizing cables, labeling storage containers, price tags, or any application requiring small durable labels.
+
+Key hardware specs:
+- **Print technology:** Direct thermal (no ink required)
+- **Resolution:** 203 DPI
+- **Label size:** 14×40mm (printable area: ~120×320 pixels)
+- **Connectivity:** Bluetooth Low Energy (BLE)
+- **Power:** Rechargeable battery
+- **Price:** ~$20-30 USD
+
+The printer uses a subset of the TSPL (TSC Printer Language) protocol over BLE, which this driver implements.
+
 ## Features
 
 - Print images to 40x14mm labels at 203 DPI (120x320 pixels max)
