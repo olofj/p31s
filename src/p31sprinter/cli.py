@@ -21,6 +21,7 @@ from .printer import (
     ImageError,
 )
 from .tspl import Density
+from .barcodes import generate_barcode, generate_qr, BarcodeType
 
 
 @click.group()
@@ -220,6 +221,178 @@ def raw(ctx, address, hex_data):
             await printer.disconnect()
 
     asyncio.run(_raw())
+
+
+@main.command()
+@click.argument("address")
+@click.argument("data")
+@click.option(
+    "--type",
+    "barcode_type",
+    type=click.Choice(["code128", "code39", "ean13", "upca"]),
+    default="code128",
+    help="Barcode type (default: code128)",
+)
+@click.option(
+    "--density",
+    type=click.IntRange(0, 15),
+    default=8,
+    help="Print density (0-15, default 8)",
+)
+@click.option("--copies", default=1, help="Number of copies")
+@click.option("--no-text", is_flag=True, help="Omit human-readable text below barcode")
+@click.option("--retry", default=0, help="Number of retries for transient failures")
+@click.pass_context
+def barcode(ctx, address, data, barcode_type, density, copies, no_text, retry):
+    """Generate and print a barcode.
+
+    DATA is the content to encode (numbers/text depending on barcode type).
+
+    Examples:
+        p31s barcode AA:BB:CC:DD:EE:FF "12345"
+        p31s barcode AA:BB:CC:DD:EE:FF "HELLO" --type code39
+    """
+
+    async def _barcode():
+        try:
+            click.echo(f"Generating {barcode_type} barcode...")
+            img = generate_barcode(
+                data,
+                barcode_type=barcode_type,
+                include_text=not no_text,
+            )
+        except ImportError as e:
+            click.echo(str(e), err=True)
+            sys.exit(1)
+        except ValueError as e:
+            click.echo(f"Invalid barcode data: {e}", err=True)
+            sys.exit(1)
+
+        printer = P31SPrinter()
+        printer.set_debug(ctx.obj["debug"])
+
+        click.echo(f"Connecting to {address}...")
+
+        try:
+            if not await printer.connect(address, retries=retry):
+                click.echo("Failed to connect!", err=True)
+                sys.exit(1)
+
+            click.echo("Printing barcode...")
+            success = await printer.print_image(
+                img,
+                density=Density(density),
+                copies=copies,
+                retries=retry,
+            )
+
+            if success:
+                click.echo("Barcode printed!")
+            else:
+                click.echo("Print failed!", err=True)
+                sys.exit(1)
+
+        except ConnectionError as e:
+            click.echo(f"Connection error: {e}", err=True)
+            sys.exit(1)
+        except PrintError as e:
+            click.echo(f"Print error: {e}", err=True)
+            sys.exit(1)
+        except PrinterError as e:
+            click.echo(f"Printer error: {e}", err=True)
+            sys.exit(1)
+        finally:
+            await printer.disconnect()
+
+    asyncio.run(_barcode())
+
+
+@main.command()
+@click.argument("address")
+@click.argument("data")
+@click.option(
+    "--size",
+    type=click.Choice(["small", "medium", "large"]),
+    default="medium",
+    help="QR code size (default: medium)",
+)
+@click.option(
+    "--error-correction",
+    type=click.Choice(["L", "M", "Q", "H"]),
+    default="M",
+    help="Error correction level (L=7%%, M=15%%, Q=25%%, H=30%%)",
+)
+@click.option(
+    "--density",
+    type=click.IntRange(0, 15),
+    default=8,
+    help="Print density (0-15, default 8)",
+)
+@click.option("--copies", default=1, help="Number of copies")
+@click.option("--retry", default=0, help="Number of retries for transient failures")
+@click.pass_context
+def qr(ctx, address, data, size, error_correction, density, copies, retry):
+    """Generate and print a QR code.
+
+    DATA is the content to encode (URL, text, etc.).
+
+    Examples:
+        p31s qr AA:BB:CC:DD:EE:FF "https://example.com"
+        p31s qr AA:BB:CC:DD:EE:FF "Hello World" --size large
+    """
+
+    async def _qr():
+        try:
+            click.echo(f"Generating QR code ({size})...")
+            img = generate_qr(
+                data,
+                size=size,
+                error_correction=error_correction,
+            )
+        except ImportError as e:
+            click.echo(str(e), err=True)
+            sys.exit(1)
+        except ValueError as e:
+            click.echo(f"Invalid QR data: {e}", err=True)
+            sys.exit(1)
+
+        printer = P31SPrinter()
+        printer.set_debug(ctx.obj["debug"])
+
+        click.echo(f"Connecting to {address}...")
+
+        try:
+            if not await printer.connect(address, retries=retry):
+                click.echo("Failed to connect!", err=True)
+                sys.exit(1)
+
+            click.echo("Printing QR code...")
+            success = await printer.print_image(
+                img,
+                density=Density(density),
+                copies=copies,
+                retries=retry,
+            )
+
+            if success:
+                click.echo("QR code printed!")
+            else:
+                click.echo("Print failed!", err=True)
+                sys.exit(1)
+
+        except ConnectionError as e:
+            click.echo(f"Connection error: {e}", err=True)
+            sys.exit(1)
+        except PrintError as e:
+            click.echo(f"Print error: {e}", err=True)
+            sys.exit(1)
+        except PrinterError as e:
+            click.echo(f"Printer error: {e}", err=True)
+            sys.exit(1)
+        finally:
+            await printer.disconnect()
+
+    asyncio.run(_qr())
 
 
 if __name__ == "__main__":

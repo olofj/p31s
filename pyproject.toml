@@ -18,6 +18,10 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
 ]
+barcodes = [
+    "python-barcode>=0.15.0",
+    "qrcode>=7.4.0",
+]
 
 [project.scripts]
 p31s = "p31sprinter.cli:main"
@@ -33,6 +37,7 @@ where = ["src"]
 asyncio_mode = "auto"
 markers = [
     "hardware: marks tests that require real printer hardware (deselect with '-m \"not hardware\"')",
+    "barcodes: marks tests that require barcode dependencies (deselect with '-m \"not barcodes\"')",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
