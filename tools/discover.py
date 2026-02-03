@@ -23,28 +23,34 @@ DEVICE_PATTERNS = ["P31", "POLONO", "MAKEID", "NIIMBOT", "LABEL"]
 async def scan_devices(timeout: float = 10.0):
     """Scan for potential label printers."""
     print(f"Scanning for devices ({timeout}s)...")
-    devices = await BleakScanner.discover(timeout=timeout)
+    discovered = await BleakScanner.discover(timeout=timeout, return_adv=True)
 
     printers = []
-    print(f"\nFound {len(devices)} total BLE devices\n")
+    print(f"\nFound {len(discovered)} total BLE devices\n")
 
-    for d in devices:
-        name = d.name or "Unknown"
+    for address, (device, adv_data) in discovered.items():
+        name = device.name or adv_data.local_name or "Unknown"
         is_printer = any(p.upper() in name.upper() for p in DEVICE_PATTERNS)
 
         if is_printer:
-            printers.append(d)
+            printers.append(device)
             print(f"  [MATCH] {name}")
-            print(f"          Address: {d.address}")
-            print(f"          RSSI: {d.rssi} dB")
+            print(f"          Address: {address}")
+            print(f"          RSSI: {adv_data.rssi} dB")
             print()
 
     if not printers:
         print("No matching printers found.")
         print(f"Looked for patterns: {DEVICE_PATTERNS}")
         print("\nAll devices found:")
-        for d in sorted(devices, key=lambda x: x.rssi or -100, reverse=True)[:10]:
-            print(f"  {d.name or 'Unknown'} [{d.address}] RSSI: {d.rssi}")
+        sorted_devices = sorted(
+            discovered.items(),
+            key=lambda x: x[1][1].rssi or -100,
+            reverse=True
+        )
+        for address, (device, adv_data) in sorted_devices[:10]:
+            name = device.name or adv_data.local_name or "Unknown"
+            print(f"  {name} [{address}] RSSI: {adv_data.rssi}")
 
     return printers
 
