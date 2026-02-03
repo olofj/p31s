@@ -21,6 +21,11 @@ from .responses import PrinterConfig, BatteryStatus
 # Bluetooth MAC address format: XX:XX:XX:XX:XX:XX (hex pairs separated by colons)
 BLUETOOTH_MAC_PATTERN = re.compile(r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
 
+# macOS CoreBluetooth UUID format: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+MACOS_UUID_PATTERN = re.compile(
+    r"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+)
+
 
 # --- Exception Classes ---
 
@@ -125,11 +130,12 @@ class P31SPrinter:
             ConnectionError: If connection fails after all retries
             ValueError: If address format is invalid
         """
-        # Validate Bluetooth address format
-        if not BLUETOOTH_MAC_PATTERN.match(address):
+        # Validate Bluetooth address format (MAC for Linux/Windows, UUID for macOS)
+        if not BLUETOOTH_MAC_PATTERN.match(address) and not MACOS_UUID_PATTERN.match(address):
             raise ValueError(
                 f"Invalid Bluetooth address format: '{address}'. "
-                "Expected format: XX:XX:XX:XX:XX:XX (e.g., AA:BB:CC:DD:EE:FF)"
+                "Expected MAC format XX:XX:XX:XX:XX:XX or "
+                "macOS UUID format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
             )
 
         last_error: Optional[Exception] = None
