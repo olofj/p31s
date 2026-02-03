@@ -2,7 +2,7 @@
 Barcode and QR Code Generation for P31S Printer.
 
 Requires optional dependencies:
-    pip install p31sprinter[barcodes]
+    pip install p31s[barcodes]
 """
 
 from io import BytesIO
@@ -31,7 +31,7 @@ def _check_barcode_dependency() -> None:
     except ImportError:
         raise ImportError(
             "python-barcode is required for barcode generation. "
-            "Install with: pip install p31sprinter[barcodes]"
+            "Install with: pip install p31s[barcodes]"
         ) from None
 
 
@@ -42,7 +42,7 @@ def _check_qrcode_dependency() -> None:
     except ImportError:
         raise ImportError(
             "qrcode is required for QR code generation. "
-            "Install with: pip install p31sprinter[barcodes]"
+            "Install with: pip install p31s[barcodes]"
         ) from None
 
 

@@ -3,7 +3,7 @@
 import pytest
 from click.testing import CliRunner
 
-from p31sprinter.cli import (
+from p31s.cli import (
     _format_printer_address,
     _get_connect_address,
     main,
@@ -110,15 +110,15 @@ class TestScanAutoSelect:
 
     def test_scan_auto_selects_single_printer(self, runner, monkeypatch):
         """Test scan auto-selects when exactly one printer found."""
-        import p31sprinter.cli
-        from p31sprinter.connection import PrinterInfo
+        import p31s.cli
+        from p31s.connection import PrinterInfo
 
         mock_printers = [PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)]
 
         async def mock_scan(timeout=10.0):
             return mock_printers
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
 
         result = runner.invoke(main, ["scan", "--timeout", "1"])
         assert result.exit_code == 0
@@ -127,15 +127,15 @@ class TestScanAutoSelect:
 
     def test_scan_no_auto_flag_shows_list_format(self, runner, monkeypatch):
         """Test --no-auto flag shows list format even with one printer."""
-        import p31sprinter.cli
-        from p31sprinter.connection import PrinterInfo
+        import p31s.cli
+        from p31s.connection import PrinterInfo
 
         mock_printers = [PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)]
 
         async def mock_scan(timeout=10.0):
             return mock_printers
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
 
         result = runner.invoke(main, ["scan", "--timeout", "1", "--no-auto"])
         assert result.exit_code == 0
@@ -144,8 +144,8 @@ class TestScanAutoSelect:
 
     def test_scan_multiple_printers_shows_list(self, runner, monkeypatch):
         """Test scan shows list format with multiple printers."""
-        import p31sprinter.cli
-        from p31sprinter.connection import PrinterInfo
+        import p31s.cli
+        from p31s.connection import PrinterInfo
 
         mock_printers = [
             PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50),
@@ -155,7 +155,7 @@ class TestScanAutoSelect:
         async def mock_scan(timeout=10.0):
             return mock_printers
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
 
         result = runner.invoke(main, ["scan", "--timeout", "1"])
         assert result.exit_code == 0
@@ -164,12 +164,12 @@ class TestScanAutoSelect:
 
     def test_scan_no_printers_found(self, runner, monkeypatch):
         """Test scan shows message when no printers found."""
-        import p31sprinter.cli
+        import p31s.cli
 
         async def mock_scan(timeout=10.0):
             return []
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
 
         result = runner.invoke(main, ["scan", "--timeout", "1"])
         assert result.exit_code == 0
@@ -188,8 +188,8 @@ class TestInteractiveSelection:
         """Test print command scans and auto-selects single printer."""
         from PIL import Image
 
-        import p31sprinter.cli
-        from p31sprinter.connection import PrinterInfo
+        import p31s.cli
+        from p31s.connection import PrinterInfo
 
         img_file = tmp_path / "test.png"
         img = Image.new("RGB", (10, 10), color="white")
@@ -209,10 +209,10 @@ class TestInteractiveSelection:
         async def mock_disconnect(self):
             pass
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "connect", mock_connect)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "print_image", mock_print)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "disconnect", mock_disconnect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_image", mock_print)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
 
         result = runner.invoke(main, ["print", str(img_file)])
         assert result.exit_code == 0
@@ -221,8 +221,8 @@ class TestInteractiveSelection:
 
     def test_test_without_address_scans_single_printer(self, runner, monkeypatch):
         """Test test command scans and auto-selects single printer."""
-        import p31sprinter.cli
-        from p31sprinter.connection import PrinterInfo
+        import p31s.cli
+        from p31s.connection import PrinterInfo
 
         mock_printers = [PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)]
 
@@ -238,10 +238,10 @@ class TestInteractiveSelection:
         async def mock_disconnect(self):
             pass
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "connect", mock_connect)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "print_test_pattern", mock_print_test)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "disconnect", mock_disconnect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_test_pattern", mock_print_test)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
 
         result = runner.invoke(main, ["test"])
         assert result.exit_code == 0
@@ -250,12 +250,12 @@ class TestInteractiveSelection:
 
     def test_command_without_address_exits_when_no_printers(self, runner, monkeypatch):
         """Test commands exit with error when no printers found."""
-        import p31sprinter.cli
+        import p31s.cli
 
         async def mock_scan(timeout=10.0):
             return []
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
 
         result = runner.invoke(main, ["test"])
         assert result.exit_code == 1
@@ -263,8 +263,8 @@ class TestInteractiveSelection:
 
     def test_interactive_selection_with_multiple_printers(self, runner, monkeypatch):
         """Test interactive prompt appears with multiple printers."""
-        import p31sprinter.cli
-        from p31sprinter.connection import PrinterInfo
+        import p31s.cli
+        from p31s.connection import PrinterInfo
 
         mock_printers = [
             PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50),
@@ -283,10 +283,10 @@ class TestInteractiveSelection:
         async def mock_disconnect(self):
             pass
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "connect", mock_connect)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "print_test_pattern", mock_print_test)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "disconnect", mock_disconnect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_test_pattern", mock_print_test)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
 
         # Simulate user selecting option 1
         result = runner.invoke(main, ["test"], input="1\n")
@@ -299,8 +299,8 @@ class TestInteractiveSelection:
 
     def test_interactive_selection_second_option(self, runner, monkeypatch):
         """Test selecting second printer in interactive mode."""
-        import p31sprinter.cli
-        from p31sprinter.connection import PrinterInfo
+        import p31s.cli
+        from p31s.connection import PrinterInfo
 
         mock_printers = [
             PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50),
@@ -319,10 +319,10 @@ class TestInteractiveSelection:
         async def mock_disconnect(self):
             pass
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "connect", mock_connect)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "print_test_pattern", mock_print_test)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "disconnect", mock_disconnect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_test_pattern", mock_print_test)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
 
         # Simulate user selecting option 2
         result = runner.invoke(main, ["test"], input="2\n")
@@ -331,7 +331,7 @@ class TestInteractiveSelection:
 
     def test_address_option_short_form(self, runner, monkeypatch):
         """Test using -a short form for address option."""
-        import p31sprinter.cli
+        import p31s.cli
 
         async def mock_connect(self, *args, **kwargs):
             return True
@@ -342,9 +342,9 @@ class TestInteractiveSelection:
         async def mock_disconnect(self):
             pass
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "connect", mock_connect)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "print_test_pattern", mock_print_test)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "disconnect", mock_disconnect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_test_pattern", mock_print_test)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
 
         result = runner.invoke(main, ["test", "-a", "AA:BB:CC:DD:EE:FF"])
         assert result.exit_code == 0
@@ -358,7 +358,7 @@ class TestMacAddressHelpers:
 
     def test_get_connect_address_prefers_mac(self):
         """_get_connect_address returns MAC address when available."""
-        from p31sprinter.connection import PrinterInfo
+        from p31s.connection import PrinterInfo
 
         info = PrinterInfo(
             name="P31S-1234",
@@ -370,7 +370,7 @@ class TestMacAddressHelpers:
 
     def test_get_connect_address_fallback_to_address(self):
         """_get_connect_address falls back to address when MAC is None."""
-        from p31sprinter.connection import PrinterInfo
+        from p31s.connection import PrinterInfo
 
         info = PrinterInfo(
             name="P31S-1234",
@@ -382,7 +382,7 @@ class TestMacAddressHelpers:
 
     def test_format_printer_address_shows_mac_with_uuid(self):
         """_format_printer_address shows MAC with UUID on macOS."""
-        from p31sprinter.connection import PrinterInfo
+        from p31s.connection import PrinterInfo
 
         info = PrinterInfo(
             name="P31S-1234",
@@ -397,7 +397,7 @@ class TestMacAddressHelpers:
 
     def test_format_printer_address_simple_when_same(self):
         """_format_printer_address shows simple format when MAC equals address."""
-        from p31sprinter.connection import PrinterInfo
+        from p31s.connection import PrinterInfo
 
         info = PrinterInfo(
             name="P31S-1234",
@@ -411,7 +411,7 @@ class TestMacAddressHelpers:
 
     def test_format_printer_address_fallback_when_no_mac(self):
         """_format_printer_address shows address when MAC is None."""
-        from p31sprinter.connection import PrinterInfo
+        from p31s.connection import PrinterInfo
 
         info = PrinterInfo(
             name="P31S-1234",
@@ -448,12 +448,12 @@ class TestScanTimeoutValidation:
 
     def test_timeout_at_lower_bound_accepted(self, runner, monkeypatch):
         """Test timeout of exactly 1.0 is accepted."""
-        import p31sprinter.cli
+        import p31s.cli
 
         async def mock_scan(timeout=10.0):
             return []
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
 
         result = runner.invoke(main, ["scan", "--timeout", "1.0"])
         assert result.exit_code == 0
@@ -461,12 +461,12 @@ class TestScanTimeoutValidation:
 
     def test_timeout_at_upper_bound_accepted(self, runner, monkeypatch):
         """Test timeout of exactly 300.0 is accepted."""
-        import p31sprinter.cli
+        import p31s.cli
 
         async def mock_scan(timeout=10.0):
             return []
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
 
         result = runner.invoke(main, ["scan", "--timeout", "300.0"])
         assert result.exit_code == 0
@@ -474,12 +474,12 @@ class TestScanTimeoutValidation:
 
     def test_timeout_default_accepted(self, runner, monkeypatch):
         """Test default timeout of 10.0 is accepted."""
-        import p31sprinter.cli
+        import p31s.cli
 
         async def mock_scan(timeout=10.0):
             return []
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
 
         result = runner.invoke(main, ["scan"])
         assert result.exit_code == 0
@@ -496,8 +496,8 @@ class TestScanWithMacAddresses:
 
     def test_scan_shows_mac_on_macos(self, runner, monkeypatch):
         """Test scan shows extracted MAC address on macOS."""
-        import p31sprinter.cli
-        from p31sprinter.connection import PrinterInfo
+        import p31s.cli
+        from p31s.connection import PrinterInfo
 
         # Simulate macOS with extracted MAC
         mock_printers = [
@@ -512,7 +512,7 @@ class TestScanWithMacAddresses:
         async def mock_scan(timeout=10.0):
             return mock_printers
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
 
         result = runner.invoke(main, ["scan", "--timeout", "1"])
         assert result.exit_code == 0
@@ -521,8 +521,8 @@ class TestScanWithMacAddresses:
 
     def test_scan_uses_mac_for_auto_select(self, runner, monkeypatch):
         """Test auto-select uses MAC address when available."""
-        import p31sprinter.cli
-        from p31sprinter.connection import PrinterInfo
+        import p31s.cli
+        from p31s.connection import PrinterInfo
 
         mock_printers = [
             PrinterInfo(
@@ -547,10 +547,10 @@ class TestScanWithMacAddresses:
         async def mock_disconnect(self):
             pass
 
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "connect", mock_connect)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "print_test_pattern", mock_print_test)
-        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "disconnect", mock_disconnect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_test_pattern", mock_print_test)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
 
         result = runner.invoke(main, ["test"])
         assert result.exit_code == 0

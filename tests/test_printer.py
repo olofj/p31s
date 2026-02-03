@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from PIL import Image
 
-from p31sprinter.printer import (
+from p31s.printer import (
     BLUETOOTH_MAC_PATTERN,
     ConnectionError,
     ImageError,
@@ -98,7 +98,7 @@ class TestImageSizeLimits:
 
     def test_max_dimension_passes(self):
         """Test that images at max dimension pass."""
-        from p31sprinter.printer import MAX_IMAGE_DIMENSION
+        from p31s.printer import MAX_IMAGE_DIMENSION
 
         printer = P31SPrinter()
         # Use a thin image to avoid exceeding pixel limit
@@ -108,7 +108,7 @@ class TestImageSizeLimits:
 
     def test_exceeds_max_width_raises_error(self):
         """Test that image exceeding max width raises ImageError."""
-        from p31sprinter.printer import MAX_IMAGE_DIMENSION
+        from p31s.printer import MAX_IMAGE_DIMENSION
 
         printer = P31SPrinter()
         img = Image.new("1", (MAX_IMAGE_DIMENSION + 1, 100), color=1)
@@ -117,7 +117,7 @@ class TestImageSizeLimits:
 
     def test_exceeds_max_height_raises_error(self):
         """Test that image exceeding max height raises ImageError."""
-        from p31sprinter.printer import MAX_IMAGE_DIMENSION
+        from p31s.printer import MAX_IMAGE_DIMENSION
 
         printer = P31SPrinter()
         img = Image.new("1", (100, MAX_IMAGE_DIMENSION + 1), color=1)
@@ -126,7 +126,7 @@ class TestImageSizeLimits:
 
     def test_max_pixels_passes(self):
         """Test that images at max pixel count pass."""
-        from p31sprinter.printer import MAX_IMAGE_PIXELS
+        from p31s.printer import MAX_IMAGE_PIXELS
 
         printer = P31SPrinter()
         # sqrt(10_000_000) ≈ 3162
@@ -146,7 +146,7 @@ class TestImageSizeLimits:
 
     def test_error_message_includes_dimensions(self):
         """Test that error message shows the problematic dimensions."""
-        from p31sprinter.printer import MAX_IMAGE_DIMENSION
+        from p31s.printer import MAX_IMAGE_DIMENSION
 
         printer = P31SPrinter()
         img = Image.new("1", (15000, 200), color=1)

@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from p31sprinter.connection import BLEConnection, PrinterInfo
+from p31s.connection import BLEConnection, PrinterInfo
 
 
 class TestNotificationSizeLimits:
@@ -204,15 +204,15 @@ class TestPlatformDetection:
 
     def test_is_macos_on_darwin(self):
         """_is_macos returns True on Darwin."""
-        with patch("p31sprinter.connection.platform.system", return_value="Darwin"):
+        with patch("p31s.connection.platform.system", return_value="Darwin"):
             assert BLEConnection._is_macos() is True
 
     def test_is_macos_on_linux(self):
         """_is_macos returns False on Linux."""
-        with patch("p31sprinter.connection.platform.system", return_value="Linux"):
+        with patch("p31s.connection.platform.system", return_value="Linux"):
             assert BLEConnection._is_macos() is False
 
     def test_is_macos_on_windows(self):
         """_is_macos returns False on Windows."""
-        with patch("p31sprinter.connection.platform.system", return_value="Windows"):
+        with patch("p31s.connection.platform.system", return_value="Windows"):
             assert BLEConnection._is_macos() is False

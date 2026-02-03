@@ -87,7 +87,7 @@ p31s raw XX:XX:XX:XX:XX:XX "1b21" --force
 
 ```python
 import asyncio
-from p31sprinter import P31SPrinter
+from p31s import P31SPrinter
 
 async def main():
     # Scan for printers
@@ -107,7 +107,7 @@ asyncio.run(main())
 
 ```
 p31/
-├── src/p31sprinter/      # Main library
+├── src/p31s/      # Main library
 │   ├── printer.py       # High-level API (P31SPrinter class)
 │   ├── connection.py    # BLE connection (scan, chunked writes)
 │   ├── tspl.py          # TSPL command builder

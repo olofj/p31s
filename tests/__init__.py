@@ -1,1 +1,1 @@
-# Tests for p31sprinter
+# Tests for p31s

@@ -2,7 +2,7 @@
 
 from PIL import Image
 
-from p31sprinter.tspl import (
+from p31s.tspl import (
     BitmapMode,
     Density,
     Direction,

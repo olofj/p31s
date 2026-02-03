@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, "src")
 from PIL import Image, ImageDraw, ImageFont
-from p31sprinter.connection import BLEConnection
+from p31s.connection import BLEConnection
 
 
 

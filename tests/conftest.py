@@ -7,7 +7,7 @@ Provides fixtures and command-line options for hardware tests.
 import pytest
 import pytest_asyncio
 
-from p31sprinter import P31SPrinter
+from p31s import P31SPrinter
 
 
 def pytest_addoption(parser):

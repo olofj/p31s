@@ -14,10 +14,10 @@ import asyncio
 import pytest
 from PIL import Image
 
-from p31sprinter import P31SPrinter
-from p31sprinter.connection import PrinterInfo
-from p31sprinter.coverage import generate_coverage_pattern
-from p31sprinter.tspl import Density
+from p31s import P31SPrinter
+from p31s.connection import PrinterInfo
+from p31s.coverage import generate_coverage_pattern
+from p31s.tspl import Density
 
 # Fixtures (printer_address, connected_printer) are defined in conftest.py
 
@@ -175,7 +175,7 @@ class TestPrint:
     @pytest.mark.asyncio
     async def test_print_with_density_settings(self, connected_printer, tmp_path):
         """Test printing with different density settings."""
-        from p31sprinter.tspl import Density
+        from p31s.tspl import Density
 
         # Create a test pattern
         img = Image.new("1", (60, 60), color=1)
@@ -250,7 +250,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_print_after_disconnect_raises(self, printer_address):
         """Test that printing after disconnect raises appropriate error."""
-        from p31sprinter.printer import ConnectionError
+        from p31s.printer import ConnectionError
 
         printer = P31SPrinter()
         await printer.connect(printer_address)

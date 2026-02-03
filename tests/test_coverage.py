@@ -1,6 +1,6 @@
 """Unit tests for coverage pattern generator."""
 
-from p31sprinter.coverage import generate_coverage_pattern
+from p31s.coverage import generate_coverage_pattern
 
 
 class TestGenerateCoveragePattern:

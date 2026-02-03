@@ -1,5 +1,5 @@
 [project]
-name = "p31sprinter"
+name = "p31s"
 version = "0.1.0"
 description = "Linux/macOS driver for POLONO P31S label printer"
 readme = "README.md"
@@ -25,7 +25,7 @@ barcodes = [
 ]
 
 [project.scripts]
-p31s = "p31sprinter.cli:main"
+p31s = "p31s.cli:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
@@ -69,4 +69,4 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["p31sprinter"]
+known-first-party = ["p31s"]

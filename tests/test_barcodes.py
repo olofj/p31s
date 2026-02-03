@@ -12,7 +12,7 @@ class TestGenerateBarcode:
 
     def test_generate_code128(self):
         """Test Code128 barcode generation."""
-        from p31sprinter.barcodes import generate_barcode
+        from p31s.barcodes import generate_barcode
 
         img = generate_barcode("12345", barcode_type="code128")
 
@@ -23,7 +23,7 @@ class TestGenerateBarcode:
 
     def test_generate_code39(self):
         """Test Code39 barcode generation."""
-        from p31sprinter.barcodes import generate_barcode
+        from p31s.barcodes import generate_barcode
 
         img = generate_barcode("HELLO", barcode_type="code39")
 
@@ -32,7 +32,7 @@ class TestGenerateBarcode:
 
     def test_generate_ean13(self):
         """Test EAN-13 barcode generation."""
-        from p31sprinter.barcodes import generate_barcode
+        from p31s.barcodes import generate_barcode
 
         # EAN-13 requires 12-13 digits
         img = generate_barcode("123456789012", barcode_type="ean13")
@@ -42,7 +42,7 @@ class TestGenerateBarcode:
 
     def test_generate_upca(self):
         """Test UPC-A barcode generation."""
-        from p31sprinter.barcodes import generate_barcode
+        from p31s.barcodes import generate_barcode
 
         # UPC-A requires 11-12 digits
         img = generate_barcode("12345678901", barcode_type="upca")
@@ -52,7 +52,7 @@ class TestGenerateBarcode:
 
     def test_barcode_no_text(self):
         """Test barcode without human-readable text."""
-        from p31sprinter.barcodes import generate_barcode
+        from p31s.barcodes import generate_barcode
 
         img_with_text = generate_barcode("12345", include_text=True)
         img_no_text = generate_barcode("12345", include_text=False)
@@ -62,7 +62,7 @@ class TestGenerateBarcode:
 
     def test_barcode_custom_width(self):
         """Test barcode with custom width."""
-        from p31sprinter.barcodes import generate_barcode
+        from p31s.barcodes import generate_barcode
 
         img = generate_barcode("12345", width=100)
 
@@ -70,7 +70,7 @@ class TestGenerateBarcode:
 
     def test_invalid_barcode_type(self):
         """Test that invalid barcode type raises ValueError."""
-        from p31sprinter.barcodes import generate_barcode
+        from p31s.barcodes import generate_barcode
 
         with pytest.raises(ValueError, match="Invalid barcode type"):
             generate_barcode("12345", barcode_type="invalid")
@@ -81,7 +81,7 @@ class TestGenerateQR:
 
     def test_generate_qr_url(self):
         """Test QR code generation with URL."""
-        from p31sprinter.barcodes import generate_qr
+        from p31s.barcodes import generate_qr
 
         img = generate_qr("https://example.com")
 
@@ -92,7 +92,7 @@ class TestGenerateQR:
 
     def test_generate_qr_text(self):
         """Test QR code generation with text."""
-        from p31sprinter.barcodes import generate_qr
+        from p31s.barcodes import generate_qr
 
         img = generate_qr("Hello, World!")
 
@@ -101,7 +101,7 @@ class TestGenerateQR:
 
     def test_qr_sizes(self):
         """Test different QR code sizes."""
-        from p31sprinter.barcodes import generate_qr
+        from p31s.barcodes import generate_qr
 
         small = generate_qr("test", size="small")
         medium = generate_qr("test", size="medium")
@@ -111,7 +111,7 @@ class TestGenerateQR:
 
     def test_qr_error_correction_levels(self):
         """Test different error correction levels."""
-        from p31sprinter.barcodes import generate_qr
+        from p31s.barcodes import generate_qr
 
         # All levels should produce valid images
         for level in ["L", "M", "Q", "H"]:
@@ -121,14 +121,14 @@ class TestGenerateQR:
 
     def test_invalid_qr_size(self):
         """Test that invalid size raises ValueError."""
-        from p31sprinter.barcodes import generate_qr
+        from p31s.barcodes import generate_qr
 
         with pytest.raises(ValueError, match="Invalid size"):
             generate_qr("test", size="invalid")
 
     def test_qr_long_data(self):
         """Test QR code with longer data."""
-        from p31sprinter.barcodes import generate_qr
+        from p31s.barcodes import generate_qr
 
         long_url = "https://example.com/path/to/resource?param1=value1&param2=value2"
         img = generate_qr(long_url)
@@ -144,7 +144,7 @@ class TestDependencyChecks:
 
     def test_barcode_import_works(self):
         """Test that barcode imports work when dependencies are installed."""
-        from p31sprinter.barcodes import generate_barcode
+        from p31s.barcodes import generate_barcode
 
         # If we get here, import succeeded
         img = generate_barcode("test")
@@ -152,7 +152,7 @@ class TestDependencyChecks:
 
     def test_qr_import_works(self):
         """Test that qrcode imports work when dependencies are installed."""
-        from p31sprinter.barcodes import generate_qr
+        from p31s.barcodes import generate_qr
 
         # If we get here, import succeeded
         img = generate_qr("test")

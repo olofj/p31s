@@ -3,7 +3,7 @@
 import pytest
 from PIL import Image
 
-from p31sprinter.image import (
+from p31s.image import (
     MAX_IMAGE_DIMENSION,
     MAX_IMAGE_PIXELS,
     ImageProcessor,
