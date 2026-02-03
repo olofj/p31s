@@ -16,6 +16,7 @@ from typing import Optional
 import click
 
 from .barcodes import generate_barcode, generate_qr
+from .cache import load_cached_printer, save_printer
 from .coverage import generate_coverage_pattern
 from .printer import (
     ConnectionError,
@@ -83,15 +84,27 @@ def _format_printer_address(printer) -> str:
     return printer.address
 
 
-async def scan_and_select(timeout: float = 10.0) -> Optional[str]:
+async def scan_and_select(timeout: float = 10.0, rescan: bool = False) -> Optional[str]:
     """Scan for printers and let user select one interactively.
+
+    Checks cache first unless rescan is True. Saves selected printer to cache.
 
     Args:
         timeout: Scan timeout in seconds
+        rescan: If True, skip cache and force new scan
 
     Returns:
         Selected printer address, or None if no printer selected
     """
+    # Check cache first (unless forcing rescan)
+    if not rescan:
+        cached = load_cached_printer()
+        if cached:
+            click.echo(f"Using cached printer: {cached.name}")
+            click.echo(f"Address: {cached.address}")
+            click.echo("(use --rescan to find a different printer)")
+            return cached.address
+
     click.echo(f"Scanning for printers ({timeout}s)...")
     printers = await P31SPrinter.scan(timeout=timeout)
 
@@ -104,7 +117,9 @@ async def scan_and_select(timeout: float = 10.0) -> Optional[str]:
         printer = printers[0]
         click.echo(f"Found 1 printer: {printer.name} - using automatically")
         click.echo(f"Address: {_format_printer_address(printer)}")
-        return _get_connect_address(printer)
+        address = _get_connect_address(printer)
+        save_printer(address, printer.name)
+        return address
 
     # Multiple printers - show numbered menu
     click.echo(f"\nFound {len(printers)} printer(s):")
@@ -121,7 +136,9 @@ async def scan_and_select(timeout: float = 10.0) -> Optional[str]:
             if 1 <= choice <= len(printers):
                 selected = printers[choice - 1]
                 click.echo(f"Selected: {selected.name}")
-                return _get_connect_address(selected)
+                address = _get_connect_address(selected)
+                save_printer(address, selected.name)
+                return address
             click.echo(f"Please enter a number between 1 and {len(printers)}", err=True)
         except click.Abort:
             return None
@@ -187,8 +204,14 @@ def scan(timeout, no_auto):
     callback=validate_bluetooth_address,
     help="Printer Bluetooth address (if omitted, scans and prompts)",
 )
+@click.option(
+    "--rescan",
+    "-r",
+    is_flag=True,
+    help="Force new scan instead of using cached printer",
+)
 @click.pass_context
-def discover(ctx, address):
+def discover(ctx, address, rescan):
     """Discover GATT services on a printer.
 
     If no address is specified, scans for printers and prompts for selection.
@@ -197,7 +220,7 @@ def discover(ctx, address):
     async def _discover():
         nonlocal address
         if address is None:
-            address = await scan_and_select()
+            address = await scan_and_select(rescan=rescan)
             if address is None:
                 sys.exit(1)
 
@@ -253,8 +276,14 @@ def discover(ctx, address):
     default=0,
     help="Number of retries (0-10)",
 )
+@click.option(
+    "--rescan",
+    "-r",
+    is_flag=True,
+    help="Force new scan instead of using cached printer",
+)
 @click.pass_context
-def print_image(ctx, image, address, density, copies, retry):
+def print_image(ctx, image, address, density, copies, retry, rescan):
     """Print an image file.
 
     If no address is specified, scans for printers and prompts for selection.
@@ -263,7 +292,7 @@ def print_image(ctx, image, address, density, copies, retry):
     async def _print():
         nonlocal address
         if address is None:
-            address = await scan_and_select()
+            address = await scan_and_select(rescan=rescan)
             if address is None:
                 sys.exit(1)
 
@@ -322,8 +351,14 @@ def print_image(ctx, image, address, density, copies, retry):
     default=0,
     help="Number of retries (0-10)",
 )
+@click.option(
+    "--rescan",
+    "-r",
+    is_flag=True,
+    help="Force new scan instead of using cached printer",
+)
 @click.pass_context
-def test(ctx, address, retry):
+def test(ctx, address, retry, rescan):
     """Print a test pattern.
 
     If no address is specified, scans for printers and prompts for selection.
@@ -332,7 +367,7 @@ def test(ctx, address, retry):
     async def _test():
         nonlocal address
         if address is None:
-            address = await scan_and_select()
+            address = await scan_and_select(rescan=rescan)
             if address is None:
                 sys.exit(1)
 
@@ -383,8 +418,14 @@ def test(ctx, address, retry):
     is_flag=True,
     help="Acknowledge security risks and skip warning prompt",
 )
+@click.option(
+    "--rescan",
+    "-r",
+    is_flag=True,
+    help="Force new scan instead of using cached printer",
+)
 @click.pass_context
-def raw(ctx, hex_data, address, force):
+def raw(ctx, hex_data, address, force, rescan):
     """Send raw hex data to printer (for debugging/testing).
 
     WARNING: This command bypasses all safety checks and can potentially
@@ -407,7 +448,7 @@ def raw(ctx, hex_data, address, force):
     async def _raw():
         nonlocal address
         if address is None:
-            address = await scan_and_select()
+            address = await scan_and_select(rescan=rescan)
             if address is None:
                 sys.exit(1)
 
@@ -474,8 +515,14 @@ def raw(ctx, hex_data, address, force):
     default=0,
     help="Number of retries (0-10)",
 )
+@click.option(
+    "--rescan",
+    "-r",
+    is_flag=True,
+    help="Force new scan instead of using cached printer",
+)
 @click.pass_context
-def barcode(ctx, data, address, barcode_type, density, copies, no_text, retry):
+def barcode(ctx, data, address, barcode_type, density, copies, no_text, retry, rescan):
     """Generate and print a barcode.
 
     DATA is the content to encode (numbers/text depending on barcode type).
@@ -491,7 +538,7 @@ def barcode(ctx, data, address, barcode_type, density, copies, no_text, retry):
     async def _barcode():
         nonlocal address
         if address is None:
-            address = await scan_and_select()
+            address = await scan_and_select(rescan=rescan)
             if address is None:
                 sys.exit(1)
 
@@ -586,8 +633,14 @@ def barcode(ctx, data, address, barcode_type, density, copies, no_text, retry):
     default=0,
     help="Number of retries (0-10)",
 )
+@click.option(
+    "--rescan",
+    "-r",
+    is_flag=True,
+    help="Force new scan instead of using cached printer",
+)
 @click.pass_context
-def qr(ctx, data, address, size, error_correction, density, copies, retry):
+def qr(ctx, data, address, size, error_correction, density, copies, retry, rescan):
     """Generate and print a QR code.
 
     DATA is the content to encode (URL, text, etc.).
@@ -603,7 +656,7 @@ def qr(ctx, data, address, size, error_correction, density, copies, retry):
     async def _qr():
         nonlocal address
         if address is None:
-            address = await scan_and_select()
+            address = await scan_and_select(rescan=rescan)
             if address is None:
                 sys.exit(1)
 
@@ -693,8 +746,14 @@ def qr(ctx, data, address, size, error_correction, density, copies, retry):
     default=0,
     help="Number of retries (0-10)",
 )
+@click.option(
+    "--rescan",
+    "-r",
+    is_flag=True,
+    help="Force new scan instead of using cached printer",
+)
 @click.pass_context
-def test_coverage(ctx, address, width, height, x_offset, y_offset, density, retry):
+def test_coverage(ctx, address, width, height, x_offset, y_offset, density, retry, rescan):
     """Print a coverage test pattern to validate print area.
 
     Prints a pattern with border, corner markers, center crosshair,
@@ -711,7 +770,7 @@ def test_coverage(ctx, address, width, height, x_offset, y_offset, density, retr
     async def _test_coverage():
         nonlocal address
         if address is None:
-            address = await scan_and_select()
+            address = await scan_and_select(rescan=rescan)
             if address is None:
                 sys.exit(1)
 

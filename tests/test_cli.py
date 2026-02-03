@@ -184,6 +184,17 @@ class TestInteractiveSelection:
         """Create CLI test runner."""
         return CliRunner()
 
+    @pytest.fixture(autouse=True)
+    def clear_cache(self, tmp_path, monkeypatch):
+        """Isolate cache for each test to prevent interference."""
+        import p31s.cache
+
+        test_config_dir = tmp_path / ".config" / "p31s"
+        test_cache_file = test_config_dir / "last_printer"
+
+        monkeypatch.setattr(p31s.cache, "CONFIG_DIR", test_config_dir)
+        monkeypatch.setattr(p31s.cache, "CACHE_FILE", test_cache_file)
+
     def test_print_without_address_scans_and_selects(self, runner, monkeypatch, tmp_path):
         """Test print command scans and auto-selects single printer."""
         from PIL import Image
@@ -351,6 +362,148 @@ class TestInteractiveSelection:
         # Should not scan, should go straight to connect
         assert "Scanning" not in result.output
         assert "Connecting to AA:BB:CC:DD:EE:FF" in result.output
+
+
+class TestPrinterCaching:
+    """Test printer caching in scan_and_select."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create CLI test runner."""
+        return CliRunner()
+
+    @pytest.fixture(autouse=True)
+    def setup_cache(self, tmp_path, monkeypatch):
+        """Set up temporary cache directory for each test."""
+        import p31s.cache
+
+        test_config_dir = tmp_path / ".config" / "p31s"
+        test_cache_file = test_config_dir / "last_printer"
+
+        monkeypatch.setattr(p31s.cache, "CONFIG_DIR", test_config_dir)
+        monkeypatch.setattr(p31s.cache, "CACHE_FILE", test_cache_file)
+
+        self.config_dir = test_config_dir
+        self.cache_file = test_cache_file
+
+    def test_scan_and_select_uses_cache(self, runner, monkeypatch, tmp_path):
+        """Test scan_and_select uses cached printer when available."""
+        from PIL import Image
+
+        import p31s.cli
+        from p31s.cache import save_printer
+
+        img_file = tmp_path / "test.png"
+        img = Image.new("RGB", (10, 10), color="white")
+        img.save(img_file)
+
+        # Set up cache
+        save_printer("AA:BB:CC:DD:EE:FF", "Cached Printer")
+
+        scan_called = []
+
+        async def mock_scan(timeout=10.0):
+            scan_called.append(True)
+            return []
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_print(self, *args, **kwargs):
+            return True
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_image", mock_print)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(main, ["print", str(img_file)])
+        assert result.exit_code == 0
+        assert "Using cached printer: Cached Printer" in result.output
+        assert len(scan_called) == 0  # Should not scan
+
+    def test_rescan_flag_forces_scan(self, runner, monkeypatch, tmp_path):
+        """Test --rescan flag forces new scan even with cached printer."""
+        from PIL import Image
+
+        import p31s.cli
+        from p31s.cache import save_printer
+        from p31s.connection import PrinterInfo
+
+        img_file = tmp_path / "test.png"
+        img = Image.new("RGB", (10, 10), color="white")
+        img.save(img_file)
+
+        # Set up cache
+        save_printer("AA:BB:CC:DD:EE:FF", "Cached Printer")
+
+        mock_printers = [PrinterInfo(name="New Printer", address="11:22:33:44:55:66", rssi=-50)]
+
+        async def mock_scan(timeout=10.0):
+            return mock_printers
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_print(self, *args, **kwargs):
+            return True
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_image", mock_print)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(main, ["print", str(img_file), "--rescan"])
+        assert result.exit_code == 0
+        assert "Using cached printer" not in result.output
+        assert "Scanning for printers" in result.output
+        assert "Found 1 printer: New Printer" in result.output
+
+    def test_scan_and_select_saves_to_cache(self, runner, monkeypatch, tmp_path):
+        """Test scan_and_select saves selected printer to cache."""
+        from PIL import Image
+
+        import p31s.cli
+        from p31s.cache import load_cached_printer
+        from p31s.connection import PrinterInfo
+
+        img_file = tmp_path / "test.png"
+        img = Image.new("RGB", (10, 10), color="white")
+        img.save(img_file)
+
+        mock_printers = [PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)]
+
+        async def mock_scan(timeout=10.0):
+            return mock_printers
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_print(self, *args, **kwargs):
+            return True
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_image", mock_print)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(main, ["print", str(img_file)])
+        assert result.exit_code == 0
+
+        # Verify cache was saved
+        cached = load_cached_printer()
+        assert cached is not None
+        assert cached.address == "AA:BB:CC:DD:EE:FF"
+        assert cached.name == "POLONO P31S"
 
 
 class TestMacAddressHelpers:
