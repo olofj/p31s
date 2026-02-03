@@ -276,8 +276,11 @@ class TSPLCommand:
                     row_byte = 0
                     bit_pos = 7
 
-            # Pad last byte if needed
+            # Pad last byte if needed (fill unused bits with white)
             if bit_pos != 7:
+                # Set remaining bits to 1 (white) to avoid black padding
+                mask = (1 << (bit_pos + 1)) - 1
+                row_byte |= mask
                 data.append(row_byte)
 
             # Ensure row is full width
