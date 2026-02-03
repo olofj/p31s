@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from p31s.connection import BLEConnection, PrinterInfo
 
 
@@ -16,7 +18,8 @@ class TestNotificationSizeLimits:
         """Verify MAX_RESPONSE_SIZE constant is defined."""
         assert BLEConnection.MAX_RESPONSE_SIZE == 4096
 
-    def test_rejects_oversized_response(self):
+    @pytest.mark.asyncio
+    async def test_rejects_oversized_response(self):
         """Notification handler should reject oversized responses."""
         conn = BLEConnection()
         mock_sender = MagicMock()
@@ -28,7 +31,8 @@ class TestNotificationSizeLimits:
         # Queue should be empty - oversized data was rejected
         assert conn._response_queue.qsize() == 0
 
-    def test_accepts_max_size_response(self):
+    @pytest.mark.asyncio
+    async def test_accepts_max_size_response(self):
         """Notification handler should accept data at exactly MAX_RESPONSE_SIZE."""
         conn = BLEConnection()
         mock_sender = MagicMock()
@@ -40,7 +44,8 @@ class TestNotificationSizeLimits:
         # Data should be queued
         assert conn._response_queue.qsize() == 1
 
-    def test_accepts_small_response(self):
+    @pytest.mark.asyncio
+    async def test_accepts_small_response(self):
         """Notification handler should accept small responses."""
         conn = BLEConnection()
         mock_sender = MagicMock()
@@ -50,7 +55,8 @@ class TestNotificationSizeLimits:
 
         assert conn._response_queue.qsize() == 1
 
-    def test_queue_drops_oldest_when_full(self):
+    @pytest.mark.asyncio
+    async def test_queue_drops_oldest_when_full(self):
         """Verify oldest notification is dropped when queue is full."""
         conn = BLEConnection()
         mock_sender = MagicMock()
@@ -74,7 +80,8 @@ class TestNotificationSizeLimits:
         first = conn._response_queue.get_nowait()
         assert first == bytes([1])
 
-    def test_notification_callback_still_called(self):
+    @pytest.mark.asyncio
+    async def test_notification_callback_still_called(self):
         """Notification callback should still be called for valid data."""
         conn = BLEConnection()
         mock_sender = MagicMock()
@@ -89,7 +96,8 @@ class TestNotificationSizeLimits:
         assert len(callback_data) == 1
         assert callback_data[0] == b"test"
 
-    def test_notification_callback_not_called_for_oversized(self):
+    @pytest.mark.asyncio
+    async def test_notification_callback_not_called_for_oversized(self):
         """Notification callback should not be called for oversized data."""
         conn = BLEConnection()
         mock_sender = MagicMock()

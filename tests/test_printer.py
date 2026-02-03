@@ -38,7 +38,8 @@ class TestExceptionHierarchy:
 class TestLoadImage:
     """Test image loading functionality."""
 
-    def test_load_pil_image(self):
+    @pytest.mark.asyncio
+    async def test_load_pil_image(self):
         """Test loading a PIL Image object."""
         printer = P31SPrinter()
         img = Image.new("1", (10, 10), color=1)
@@ -46,26 +47,30 @@ class TestLoadImage:
         assert result.mode == "1"
         assert result.size == (10, 10)
 
-    def test_load_rgb_image_converts_to_1bit(self):
+    @pytest.mark.asyncio
+    async def test_load_rgb_image_converts_to_1bit(self):
         """Test that RGB images are converted to 1-bit."""
         printer = P31SPrinter()
         img = Image.new("RGB", (10, 10), color=(255, 255, 255))
         result = printer._load_image(img)
         assert result.mode == "1"
 
-    def test_load_nonexistent_file_raises_image_error(self):
+    @pytest.mark.asyncio
+    async def test_load_nonexistent_file_raises_image_error(self):
         """Test that loading nonexistent file raises ImageError."""
         printer = P31SPrinter()
         with pytest.raises(ImageError, match="not found"):
             printer._load_image("/nonexistent/path/image.png")
 
-    def test_load_invalid_type_raises_image_error(self):
+    @pytest.mark.asyncio
+    async def test_load_invalid_type_raises_image_error(self):
         """Test that loading invalid type raises ImageError."""
         printer = P31SPrinter()
         with pytest.raises(ImageError, match="Unsupported image type"):
             printer._load_image(12345)
 
-    def test_load_bytes(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_load_bytes(self, tmp_path):
         """Test loading image from bytes."""
         printer = P31SPrinter()
         img = Image.new("1", (10, 10), color=1)
@@ -76,7 +81,8 @@ class TestLoadImage:
         result = printer._load_image(img_bytes)
         assert result.mode == "1"
 
-    def test_load_path(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_load_path(self, tmp_path):
         """Test loading image from Path object."""
         printer = P31SPrinter()
         img = Image.new("1", (10, 10), color=1)
@@ -89,14 +95,16 @@ class TestLoadImage:
 class TestImageSizeLimits:
     """Test image size validation to prevent memory exhaustion."""
 
-    def test_valid_image_passes(self):
+    @pytest.mark.asyncio
+    async def test_valid_image_passes(self):
         """Test that normal-sized images pass validation."""
         printer = P31SPrinter()
         img = Image.new("1", (100, 100), color=1)
         result = printer._load_image(img)
         assert result.size == (100, 100)
 
-    def test_max_dimension_passes(self):
+    @pytest.mark.asyncio
+    async def test_max_dimension_passes(self):
         """Test that images at max dimension pass."""
         from p31s.printer import MAX_IMAGE_DIMENSION
 
@@ -106,7 +114,8 @@ class TestImageSizeLimits:
         result = printer._load_image(img)
         assert result.width == MAX_IMAGE_DIMENSION
 
-    def test_exceeds_max_width_raises_error(self):
+    @pytest.mark.asyncio
+    async def test_exceeds_max_width_raises_error(self):
         """Test that image exceeding max width raises ImageError."""
         from p31s.printer import MAX_IMAGE_DIMENSION
 
@@ -115,7 +124,8 @@ class TestImageSizeLimits:
         with pytest.raises(ImageError, match="dimensions.*exceed maximum"):
             printer._load_image(img)
 
-    def test_exceeds_max_height_raises_error(self):
+    @pytest.mark.asyncio
+    async def test_exceeds_max_height_raises_error(self):
         """Test that image exceeding max height raises ImageError."""
         from p31s.printer import MAX_IMAGE_DIMENSION
 
@@ -124,7 +134,8 @@ class TestImageSizeLimits:
         with pytest.raises(ImageError, match="dimensions.*exceed maximum"):
             printer._load_image(img)
 
-    def test_max_pixels_passes(self):
+    @pytest.mark.asyncio
+    async def test_max_pixels_passes(self):
         """Test that images at max pixel count pass."""
         from p31s.printer import MAX_IMAGE_PIXELS
 
@@ -135,7 +146,8 @@ class TestImageSizeLimits:
         result = printer._load_image(img)
         assert result.width * result.height <= MAX_IMAGE_PIXELS
 
-    def test_exceeds_max_pixels_raises_error(self):
+    @pytest.mark.asyncio
+    async def test_exceeds_max_pixels_raises_error(self):
         """Test that image exceeding max pixel count raises ImageError."""
 
         printer = P31SPrinter()
@@ -144,7 +156,8 @@ class TestImageSizeLimits:
         with pytest.raises(ImageError, match="pixel count.*exceeds"):
             printer._load_image(img)
 
-    def test_error_message_includes_dimensions(self):
+    @pytest.mark.asyncio
+    async def test_error_message_includes_dimensions(self):
         """Test that error message shows the problematic dimensions."""
         from p31s.printer import MAX_IMAGE_DIMENSION
 
@@ -155,7 +168,8 @@ class TestImageSizeLimits:
         assert "15000x200" in str(exc_info.value)
         assert str(MAX_IMAGE_DIMENSION) in str(exc_info.value)
 
-    def test_error_message_includes_pixel_count(self):
+    @pytest.mark.asyncio
+    async def test_error_message_includes_pixel_count(self):
         """Test that error message shows the pixel count."""
 
         printer = P31SPrinter()
