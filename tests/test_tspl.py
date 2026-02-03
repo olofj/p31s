@@ -113,8 +113,9 @@ class TestBitmapCommand:
         cmd.bitmap_from_image(0, 0, img)
         result = cmd.get_commands()
 
-        # Should have BITMAP command
-        assert b"BITMAP 0,0,1,2,0," in result
+        # Should have BITMAP command with OR mode (1) as default
+        # OR mode works best with P31S printer
+        assert b"BITMAP 0,0,1,2,1," in result
 
     def test_bitmap_from_rgb_image(self):
         """Test converting RGB image to bitmap command."""
