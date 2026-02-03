@@ -179,20 +179,6 @@ async def scan_for_printer() -> str | None:
     return printers[0].address
 
 
-async def wait_for_printer_ready(conn: BLEConnection, timeout: float = 30.0) -> bool:
-    """Wait for printer to be ready by querying its status.
-
-    Sends CONFIG? query and waits for response, which indicates
-    the printer has finished processing and is ready for next job.
-    """
-    # Send status query
-    await conn.write(b"CONFIG?\r\n")
-
-    # Wait for response
-    response = await conn.read_response(timeout=timeout)
-    return response is not None
-
-
 async def print_image(img: Image.Image, conn: BLEConnection) -> bool:
     """Print an image to the P31S printer using existing connection."""
     # Rotate -90 degrees (clockwise) for portrait orientation (120x320)
@@ -328,15 +314,9 @@ async def main():
                 print(f"  Failed!")
                 continue
 
-            # Wait for printer to be ready before next label
+            # Wait for printer to finish before next label
             if i < len(labels) - 1:
-                print("  Waiting for printer...")
-                ready = await wait_for_printer_ready(conn, timeout=30.0)
-                if ready:
-                    print("  Ready!")
-                else:
-                    print("  Warning: No response, continuing anyway...")
-                    await asyncio.sleep(3.0)  # Fallback delay
+                await asyncio.sleep(4.0)
     finally:
         await conn.disconnect()
         print("Disconnected")
