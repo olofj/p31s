@@ -16,7 +16,7 @@ from typing import Optional
 import click
 
 from .barcodes import generate_barcode, generate_qr
-from .cache import load_cached_printer, save_printer
+from .cache import clear_cache, load_cached_printer, save_printer
 from .coverage import generate_coverage_pattern
 from .printer import (
     ConnectionError,
@@ -821,6 +821,25 @@ def test_coverage(ctx, address, width, height, x_offset, y_offset, density, retr
             await printer.disconnect()
 
     asyncio.run(_test_coverage())
+
+
+@main.command()
+def forget():
+    """Clear the cached printer address.
+
+    Removes the remembered printer so the next command will scan for printers
+    again instead of using the cached one.
+    """
+    cached = load_cached_printer()
+    if cached:
+        if clear_cache():
+            click.echo(f"Forgot cached printer: {cached.name}")
+            click.echo(f"Address: {cached.address}")
+        else:
+            click.echo("Failed to clear cache.", err=True)
+            sys.exit(1)
+    else:
+        click.echo("No cached printer to forget.")
 
 
 if __name__ == "__main__":

@@ -506,6 +506,51 @@ class TestPrinterCaching:
         assert cached.name == "POLONO P31S"
 
 
+class TestForgetCommand:
+    """Test the forget command for clearing cached printer."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create CLI test runner."""
+        return CliRunner()
+
+    @pytest.fixture(autouse=True)
+    def setup_cache(self, tmp_path, monkeypatch):
+        """Set up temporary cache directory for each test."""
+        import p31s.cache
+
+        test_config_dir = tmp_path / ".config" / "p31s"
+        test_cache_file = test_config_dir / "last_printer"
+
+        monkeypatch.setattr(p31s.cache, "CONFIG_DIR", test_config_dir)
+        monkeypatch.setattr(p31s.cache, "CACHE_FILE", test_cache_file)
+
+        self.config_dir = test_config_dir
+        self.cache_file = test_cache_file
+
+    def test_forget_clears_cached_printer(self, runner):
+        """Test forget command clears the cached printer."""
+        from p31s.cache import load_cached_printer, save_printer
+
+        # Set up a cached printer
+        save_printer("AA:BB:CC:DD:EE:FF", "Test Printer")
+        assert load_cached_printer() is not None
+
+        result = runner.invoke(main, ["forget"])
+        assert result.exit_code == 0
+        assert "Forgot cached printer: Test Printer" in result.output
+        assert "AA:BB:CC:DD:EE:FF" in result.output
+
+        # Verify cache is cleared
+        assert load_cached_printer() is None
+
+    def test_forget_with_no_cache(self, runner):
+        """Test forget command when no printer is cached."""
+        result = runner.invoke(main, ["forget"])
+        assert result.exit_code == 0
+        assert "No cached printer to forget." in result.output
+
+
 class TestMacAddressHelpers:
     """Test MAC address helper functions."""
 
