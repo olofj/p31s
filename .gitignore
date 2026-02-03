@@ -45,9 +45,13 @@ jadx/
 .DS_Store
 Thumbs.db
 
-# Generated previews
+# Generated previews and labels
 *_preview*.png
 label_preview.png
+label_*.png
+
+# smartctl output files
+smart.*
 
 # Test photos
 *.JPG
