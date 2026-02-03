@@ -62,8 +62,18 @@ def main(ctx, debug):
 
 @main.command()
 @click.option("--timeout", default=10.0, help="Scan timeout in seconds")
-def scan(timeout):
-    """Scan for P31S printers."""
+@click.option(
+    "--no-auto",
+    is_flag=True,
+    help="Don't auto-select when only one printer is found",
+)
+def scan(timeout, no_auto):
+    """Scan for P31S printers.
+
+    When exactly one printer is found, it will be automatically selected
+    and its address printed for easy use with other commands.
+    Use --no-auto to always show the full list format.
+    """
 
     async def _scan():
         click.echo(f"Scanning for printers ({timeout}s)...")
@@ -71,6 +81,13 @@ def scan(timeout):
 
         if not printers:
             click.echo("No printers found.")
+            return
+
+        # Auto-select when exactly one printer found (unless --no-auto)
+        if len(printers) == 1 and not no_auto:
+            printer = printers[0]
+            click.echo(f"\nFound 1 printer: {printer.name} - using automatically")
+            click.echo(f"Address: {printer.address}")
             return
 
         click.echo(f"\nFound {len(printers)} printer(s):\n")

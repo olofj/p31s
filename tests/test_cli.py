@@ -86,3 +86,75 @@ class TestCLIAddressValidation:
         result = runner.invoke(main, ["discover", "AA:BB:CC:DD:EE:FF"])
         # Should not contain validation error - will fail later on actual connection
         assert "Invalid Bluetooth address" not in result.output
+
+
+class TestScanAutoSelect:
+    """Test scan command auto-select behavior."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create CLI test runner."""
+        return CliRunner()
+
+    def test_scan_auto_selects_single_printer(self, runner, mocker):
+        """Test scan auto-selects when exactly one printer found."""
+        from p31sprinter.connection import PrinterInfo
+
+        mock_printers = [
+            PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)
+        ]
+        mocker.patch(
+            "p31sprinter.cli.P31SPrinter.scan",
+            return_value=mock_printers,
+        )
+
+        result = runner.invoke(main, ["scan", "--timeout", "1"])
+        assert result.exit_code == 0
+        assert "Found 1 printer: POLONO P31S - using automatically" in result.output
+        assert "Address: AA:BB:CC:DD:EE:FF" in result.output
+
+    def test_scan_no_auto_flag_shows_list_format(self, runner, mocker):
+        """Test --no-auto flag shows list format even with one printer."""
+        from p31sprinter.connection import PrinterInfo
+
+        mock_printers = [
+            PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)
+        ]
+        mocker.patch(
+            "p31sprinter.cli.P31SPrinter.scan",
+            return_value=mock_printers,
+        )
+
+        result = runner.invoke(main, ["scan", "--timeout", "1", "--no-auto"])
+        assert result.exit_code == 0
+        assert "Found 1 printer(s):" in result.output
+        assert "using automatically" not in result.output
+
+    def test_scan_multiple_printers_shows_list(self, runner, mocker):
+        """Test scan shows list format with multiple printers."""
+        from p31sprinter.connection import PrinterInfo
+
+        mock_printers = [
+            PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50),
+            PrinterInfo(name="P31S_2", address="11:22:33:44:55:66", rssi=-60),
+        ]
+        mocker.patch(
+            "p31sprinter.cli.P31SPrinter.scan",
+            return_value=mock_printers,
+        )
+
+        result = runner.invoke(main, ["scan", "--timeout", "1"])
+        assert result.exit_code == 0
+        assert "Found 2 printer(s):" in result.output
+        assert "using automatically" not in result.output
+
+    def test_scan_no_printers_found(self, runner, mocker):
+        """Test scan shows message when no printers found."""
+        mocker.patch(
+            "p31sprinter.cli.P31SPrinter.scan",
+            return_value=[],
+        )
+
+        result = runner.invoke(main, ["scan", "--timeout", "1"])
+        assert result.exit_code == 0
+        assert "No printers found." in result.output
