@@ -1,10 +1,14 @@
 """Tests for TSPL protocol implementation."""
 
-import pytest
 from PIL import Image
 
 from p31sprinter.tspl import (
-    TSPLCommand, LabelSize, Density, BitmapMode, Direction, create_print_job
+    BitmapMode,
+    Density,
+    Direction,
+    LabelSize,
+    TSPLCommand,
+    create_print_job,
 )
 
 

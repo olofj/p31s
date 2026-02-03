@@ -4,10 +4,10 @@ import pytest
 from PIL import Image
 
 from p31sprinter.image import (
-    ImageProcessor,
-    ImageSizeError,
     MAX_IMAGE_DIMENSION,
     MAX_IMAGE_PIXELS,
+    ImageProcessor,
+    ImageSizeError,
     create_test_pattern,
 )
 
@@ -117,7 +117,7 @@ class TestImageProcessor:
 
         # Create grayscale image
         img = Image.new("L", (4, 1))
-        img.putpixel((0, 0), 0)    # Black
+        img.putpixel((0, 0), 0)  # Black
         img.putpixel((1, 0), 127)  # Below threshold -> black
         img.putpixel((2, 0), 128)  # At threshold -> white
         img.putpixel((3, 0), 255)  # White

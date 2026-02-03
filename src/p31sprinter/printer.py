@@ -13,10 +13,9 @@ from typing import Optional, Union
 from PIL import Image
 
 from .connection import BLEConnection, PrinterInfo
-from .tspl import TSPLCommand, LabelSize, Density, BitmapMode
+from .responses import BatteryStatus, PrinterConfig
+from .tspl import BitmapMode, Density, LabelSize, TSPLCommand
 from .tspl_commands import TSPLCommands
-from .responses import PrinterConfig, BatteryStatus
-
 
 # Bluetooth MAC address format: XX:XX:XX:XX:XX:XX (hex pairs separated by colons)
 BLUETOOTH_MAC_PATTERN = re.compile(r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
@@ -73,7 +72,7 @@ class P31SPrinter:
     """
 
     # Maximum printable resolution (from iOS app capture analysis)
-    MAX_WIDTH_PX = 96    # 12 bytes * 8 = 96 pixels
+    MAX_WIDTH_PX = 96  # 12 bytes * 8 = 96 pixels
     MAX_HEIGHT_PX = 304  # Verified from iOS capture
 
     # Bitmap positioning from iOS app capture
@@ -86,9 +85,12 @@ class P31SPrinter:
     DEFAULT_LABEL_HEIGHT_MM = 40.0
     DEFAULT_GAP_MM = 5.0
 
-    def __init__(self, label_width_mm: float = DEFAULT_LABEL_WIDTH_MM,
-                 label_height_mm: float = DEFAULT_LABEL_HEIGHT_MM,
-                 gap_mm: float = DEFAULT_GAP_MM):
+    def __init__(
+        self,
+        label_width_mm: float = DEFAULT_LABEL_WIDTH_MM,
+        label_height_mm: float = DEFAULT_LABEL_HEIGHT_MM,
+        gap_mm: float = DEFAULT_GAP_MM,
+    ):
         """
         Initialize printer interface.
 
@@ -143,7 +145,6 @@ class P31SPrinter:
                 "macOS UUID format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
             )
 
-        last_error: Optional[Exception] = None
         attempts = retries + 1
 
         for attempt in range(attempts):
@@ -164,14 +165,14 @@ class P31SPrinter:
                     if response:
                         config = PrinterConfig.parse(response)
                         if config:
-                            self._log(f"Printer: FW {config.firmware_version}, {config.resolution} DPI")
+                            self._log(
+                                f"Printer: FW {config.firmware_version}, {config.resolution} DPI"
+                            )
                     return True
                 else:
-                    last_error = ConnectionError(f"Failed to connect to {address}")
                     self._log(f"Connection failed (attempt {attempt + 1}/{attempts})")
 
             except Exception as e:
-                last_error = e
                 self._log(f"Connection error (attempt {attempt + 1}/{attempts}): {e}")
 
         # All retries exhausted - raise if caller wants exceptions, otherwise return False
@@ -227,6 +228,7 @@ class P31SPrinter:
                 img = Image.open(path)
             elif isinstance(image, bytes):
                 from io import BytesIO
+
                 img = Image.open(BytesIO(image))
             elif isinstance(image, Image.Image):
                 img = image
@@ -337,9 +339,7 @@ class P31SPrinter:
                     raise ConnectionError(f"Connection lost: {e}") from e
 
         # All retries exhausted
-        raise PrintError(
-            f"Print failed after {attempts} attempt(s): {last_error}"
-        ) from last_error
+        raise PrintError(f"Print failed after {attempts} attempt(s): {last_error}") from last_error
 
     async def print_test_pattern(self, retries: int = 0) -> bool:
         """

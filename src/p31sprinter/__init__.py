@@ -2,21 +2,21 @@
 
 __version__ = "0.1.0"
 
+from .connection import BLEConnection, PrinterInfo
+from .image import ImageSizeError
 from .printer import (
-    P31SPrinter,
-    PrinterError,
-    ConnectionError,
-    PrintError,
-    PaperError,
-    ImageError,
     MAX_IMAGE_DIMENSION,
     MAX_IMAGE_PIXELS,
+    ConnectionError,
+    ImageError,
+    P31SPrinter,
+    PaperError,
+    PrinterError,
+    PrintError,
 )
-from .image import ImageSizeError
-from .connection import BLEConnection, PrinterInfo
-from .tspl import TSPLCommand, LabelSize, Density, BitmapMode
+from .responses import BatteryStatus, ChunkSize, PrintedCount, PrinterConfig
+from .tspl import BitmapMode, Density, LabelSize, TSPLCommand
 from .tspl_commands import TSPLCommands
-from .responses import PrinterConfig, BatteryStatus, ChunkSize, PrintedCount
 
 __all__ = [
     "P31SPrinter",

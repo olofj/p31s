@@ -1,8 +1,5 @@
 """Unit tests for coverage pattern generator."""
 
-import pytest
-from PIL import Image
-
 from p31sprinter.coverage import generate_coverage_pattern
 
 

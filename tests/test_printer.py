@@ -1,20 +1,18 @@
 """Tests for printer error handling."""
 
-import asyncio
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from PIL import Image
 
 from p31sprinter.printer import (
+    BLUETOOTH_MAC_PATTERN,
+    ConnectionError,
+    ImageError,
     P31SPrinter,
     PrinterError,
-    ConnectionError,
     PrintError,
-    ImageError,
     quick_print,
-    BLUETOOTH_MAC_PATTERN,
 )
 
 
@@ -101,6 +99,7 @@ class TestImageSizeLimits:
     def test_max_dimension_passes(self):
         """Test that images at max dimension pass."""
         from p31sprinter.printer import MAX_IMAGE_DIMENSION
+
         printer = P31SPrinter()
         # Use a thin image to avoid exceeding pixel limit
         img = Image.new("1", (MAX_IMAGE_DIMENSION, 100), color=1)
@@ -110,6 +109,7 @@ class TestImageSizeLimits:
     def test_exceeds_max_width_raises_error(self):
         """Test that image exceeding max width raises ImageError."""
         from p31sprinter.printer import MAX_IMAGE_DIMENSION
+
         printer = P31SPrinter()
         img = Image.new("1", (MAX_IMAGE_DIMENSION + 1, 100), color=1)
         with pytest.raises(ImageError, match="dimensions.*exceed maximum"):
@@ -118,6 +118,7 @@ class TestImageSizeLimits:
     def test_exceeds_max_height_raises_error(self):
         """Test that image exceeding max height raises ImageError."""
         from p31sprinter.printer import MAX_IMAGE_DIMENSION
+
         printer = P31SPrinter()
         img = Image.new("1", (100, MAX_IMAGE_DIMENSION + 1), color=1)
         with pytest.raises(ImageError, match="dimensions.*exceed maximum"):
@@ -126,6 +127,7 @@ class TestImageSizeLimits:
     def test_max_pixels_passes(self):
         """Test that images at max pixel count pass."""
         from p31sprinter.printer import MAX_IMAGE_PIXELS
+
         printer = P31SPrinter()
         # sqrt(10_000_000) ≈ 3162
         side = int(MAX_IMAGE_PIXELS**0.5)
@@ -135,7 +137,7 @@ class TestImageSizeLimits:
 
     def test_exceeds_max_pixels_raises_error(self):
         """Test that image exceeding max pixel count raises ImageError."""
-        from p31sprinter.printer import MAX_IMAGE_PIXELS
+
         printer = P31SPrinter()
         # Create image just over pixel limit (5000 x 2001 = 10,005,000)
         img = Image.new("1", (5000, 2001), color=1)
@@ -145,6 +147,7 @@ class TestImageSizeLimits:
     def test_error_message_includes_dimensions(self):
         """Test that error message shows the problematic dimensions."""
         from p31sprinter.printer import MAX_IMAGE_DIMENSION
+
         printer = P31SPrinter()
         img = Image.new("1", (15000, 200), color=1)
         with pytest.raises(ImageError) as exc_info:
@@ -154,7 +157,7 @@ class TestImageSizeLimits:
 
     def test_error_message_includes_pixel_count(self):
         """Test that error message shows the pixel count."""
-        from p31sprinter.printer import MAX_IMAGE_PIXELS
+
         printer = P31SPrinter()
         img = Image.new("1", (5000, 2001), color=1)
         with pytest.raises(ImageError) as exc_info:
@@ -221,9 +224,7 @@ class TestPrintImageErrorHandling:
     async def test_retry_on_failure(self, mock_connection):
         """Test retry logic on transient failure."""
         # Fail first two times, succeed on third
-        mock_connection.write_chunked = AsyncMock(
-            side_effect=[False, False, True]
-        )
+        mock_connection.write_chunked = AsyncMock(side_effect=[False, False, True])
 
         printer = P31SPrinter()
         printer.connection = mock_connection
@@ -247,9 +248,7 @@ class TestPrintImageErrorHandling:
         assert mock_connection.write_chunked.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_connection_lost_during_retry_raises_connection_error(
-        self, mock_connection
-    ):
+    async def test_connection_lost_during_retry_raises_connection_error(self, mock_connection):
         """Test that connection lost during retry raises ConnectionError."""
         mock_connection.write_chunked = AsyncMock(return_value=False)
 
@@ -300,15 +299,11 @@ class TestConnectRetry:
         """Test retry logic on connection failure."""
         printer = P31SPrinter()
         printer.connection = MagicMock()
-        printer.connection.connect = AsyncMock(
-            side_effect=[False, False, True]
-        )
+        printer.connection.connect = AsyncMock(side_effect=[False, False, True])
         printer.connection.write = AsyncMock(return_value=True)
         printer.connection.read_response = AsyncMock(return_value=None)
 
-        result = await printer.connect(
-            "AA:BB:CC:DD:EE:FF", retries=2, retry_delay=0.01
-        )
+        result = await printer.connect("AA:BB:CC:DD:EE:FF", retries=2, retry_delay=0.01)
         assert result is True
         assert printer.connection.connect.call_count == 3
 
@@ -321,9 +316,7 @@ class TestQuickPrint:
         """Test that connection failure raises ConnectionError."""
         with patch.object(P31SPrinter, "connect", new_callable=AsyncMock) as mock_connect:
             mock_connect.return_value = False
-            with patch.object(
-                P31SPrinter, "disconnect", new_callable=AsyncMock
-            ):
+            with patch.object(P31SPrinter, "disconnect", new_callable=AsyncMock):
                 with pytest.raises(ConnectionError):
                     await quick_print("AA:BB:CC:DD:EE:FF", "/some/image.png")
 
@@ -332,35 +325,41 @@ class TestBluetoothAddressValidation:
     """Test Bluetooth MAC address validation."""
 
     # Valid address formats
-    @pytest.mark.parametrize("address", [
-        "AA:BB:CC:DD:EE:FF",  # Uppercase
-        "aa:bb:cc:dd:ee:ff",  # Lowercase
-        "Aa:Bb:Cc:Dd:Ee:Ff",  # Mixed case
-        "00:00:00:00:00:00",  # All zeros
-        "FF:FF:FF:FF:FF:FF",  # All max
-        "12:34:56:78:9A:BC",  # Mixed hex digits
-    ])
+    @pytest.mark.parametrize(
+        "address",
+        [
+            "AA:BB:CC:DD:EE:FF",  # Uppercase
+            "aa:bb:cc:dd:ee:ff",  # Lowercase
+            "Aa:Bb:Cc:Dd:Ee:Ff",  # Mixed case
+            "00:00:00:00:00:00",  # All zeros
+            "FF:FF:FF:FF:FF:FF",  # All max
+            "12:34:56:78:9A:BC",  # Mixed hex digits
+        ],
+    )
     def test_valid_address_pattern(self, address):
         """Test that valid addresses match the pattern."""
         assert BLUETOOTH_MAC_PATTERN.match(address) is not None
 
     # Invalid address formats
-    @pytest.mark.parametrize("address,description", [
-        ("", "empty string"),
-        ("AA:BB:CC:DD:EE", "too short (5 segments)"),
-        ("AA:BB:CC:DD:EE:FF:00", "too long (7 segments)"),
-        ("AABBCCDDEEFF", "no colons"),
-        ("AA-BB-CC-DD-EE-FF", "dashes instead of colons"),
-        ("AA:BB:CC:DD:EE:GG", "invalid hex character G"),
-        ("AA:BB:CC:DD:EE:FFF", "segment too long"),
-        ("AA:BB:CC:DD:EE:F", "segment too short"),
-        ("AA:BB:CC:DD:EE:", "trailing colon"),
-        (":AA:BB:CC:DD:EE:FF", "leading colon"),
-        ("AA:BB:CC:DD:EE:FF ", "trailing space"),
-        (" AA:BB:CC:DD:EE:FF", "leading space"),
-        ("random-text", "random text"),
-        ("192.168.1.1", "IP address format"),
-    ])
+    @pytest.mark.parametrize(
+        "address,description",
+        [
+            ("", "empty string"),
+            ("AA:BB:CC:DD:EE", "too short (5 segments)"),
+            ("AA:BB:CC:DD:EE:FF:00", "too long (7 segments)"),
+            ("AABBCCDDEEFF", "no colons"),
+            ("AA-BB-CC-DD-EE-FF", "dashes instead of colons"),
+            ("AA:BB:CC:DD:EE:GG", "invalid hex character G"),
+            ("AA:BB:CC:DD:EE:FFF", "segment too long"),
+            ("AA:BB:CC:DD:EE:F", "segment too short"),
+            ("AA:BB:CC:DD:EE:", "trailing colon"),
+            (":AA:BB:CC:DD:EE:FF", "leading colon"),
+            ("AA:BB:CC:DD:EE:FF ", "trailing space"),
+            (" AA:BB:CC:DD:EE:FF", "leading space"),
+            ("random-text", "random text"),
+            ("192.168.1.1", "IP address format"),
+        ],
+    )
     def test_invalid_address_pattern(self, address, description):
         """Test that invalid addresses don't match the pattern."""
         assert BLUETOOTH_MAC_PATTERN.match(address) is None, f"Should reject: {description}"

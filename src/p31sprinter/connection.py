@@ -28,6 +28,7 @@ class PrinterInfo:
             extracted from manufacturer data if the device broadcasts it.
         rssi: Signal strength in dB
     """
+
     name: str
     address: str
     rssi: int
@@ -46,6 +47,7 @@ class PrinterInfo:
 @dataclass
 class ServiceInfo:
     """Information about a GATT service and its characteristics."""
+
     service_uuid: str
     characteristics: list[dict]
 
@@ -93,9 +95,7 @@ class BLEConnection:
         return platform.system() == "Darwin"
 
     @staticmethod
-    def _extract_mac_from_manufacturer_data(
-        manufacturer_data: dict[int, bytes]
-    ) -> Optional[str]:
+    def _extract_mac_from_manufacturer_data(manufacturer_data: dict[int, bytes]) -> Optional[str]:
         """Extract MAC address from manufacturer data if present.
 
         Many Chinese BLE devices embed their MAC address in the manufacturer
@@ -107,7 +107,7 @@ class BLEConnection:
         Returns:
             MAC address in XX:XX:XX:XX:XX:XX format, or None if not found
         """
-        for company_id, data in manufacturer_data.items():
+        for _company_id, data in manufacturer_data.items():
             # MAC is often in the first 6 bytes or last 6 bytes
             if len(data) >= 6:
                 # Try first 6 bytes (common pattern)
@@ -158,12 +158,14 @@ class BLEConnection:
                     # On Linux/Windows, device.address is already the MAC
                     mac_address = device.address
 
-                printers.append(PrinterInfo(
-                    name=name,
-                    address=device.address,
-                    rssi=adv_data.rssi if adv_data.rssi is not None else -100,
-                    mac_address=mac_address,
-                ))
+                printers.append(
+                    PrinterInfo(
+                        name=name,
+                        address=device.address,
+                        rssi=adv_data.rssi if adv_data.rssi is not None else -100,
+                        mac_address=mac_address,
+                    )
+                )
 
         return sorted(printers, key=lambda p: p.rssi, reverse=True)
 
@@ -179,10 +181,7 @@ class BLEConnection:
 
             # Set up notification handler if we found a notify characteristic
             if self.notify_char:
-                await self.client.start_notify(
-                    self.notify_char,
-                    self._handle_notification
-                )
+                await self.client.start_notify(self.notify_char, self._handle_notification)
 
             return True
         except Exception as e:
@@ -256,11 +255,7 @@ class BLEConnection:
             return False
 
         try:
-            await self.client.write_gatt_char(
-                self.write_char,
-                data,
-                response=response
-            )
+            await self.client.write_gatt_char(self.write_char, data, response=response)
             return True
         except Exception as e:
             print(f"Write failed: {e}")
@@ -271,7 +266,7 @@ class BLEConnection:
         data: bytes,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         delay_ms: float = 10.0,
-        response: bool = False
+        response: bool = False,
     ) -> bool:
         """
         Write data to the printer in chunks.
@@ -291,15 +286,11 @@ class BLEConnection:
         total_chunks = (len(data) + chunk_size - 1) // chunk_size
 
         for i in range(0, len(data), chunk_size):
-            chunk = data[i:i + chunk_size]
+            chunk = data[i : i + chunk_size]
             chunk_num = i // chunk_size + 1
 
             try:
-                await self.client.write_gatt_char(
-                    self.write_char,
-                    chunk,
-                    response=response
-                )
+                await self.client.write_gatt_char(self.write_char, chunk, response=response)
             except Exception as e:
                 print(f"Write failed at chunk {chunk_num}/{total_chunks}: {e}")
                 return False
@@ -317,7 +308,7 @@ class BLEConnection:
 
         try:
             # Bleak provides mtu_size on some backends
-            mtu = getattr(self.client, 'mtu_size', None)
+            mtu = getattr(self.client, "mtu_size", None)
             if mtu:
                 # MTU includes 3 bytes of ATT overhead
                 return max(mtu - 3, self.DEFAULT_CHUNK_SIZE)
@@ -329,10 +320,7 @@ class BLEConnection:
     async def read_response(self, timeout: float = 5.0) -> Optional[bytes]:
         """Wait for and return a response from the printer."""
         try:
-            return await asyncio.wait_for(
-                self._response_queue.get(),
-                timeout=timeout
-            )
+            return await asyncio.wait_for(self._response_queue.get(), timeout=timeout)
         except asyncio.TimeoutError:
             return None
 
@@ -345,15 +333,14 @@ class BLEConnection:
         for service in self.client.services:
             chars = []
             for char in service.characteristics:
-                chars.append({
-                    "uuid": char.uuid,
-                    "properties": list(char.properties),
-                    "handle": char.handle,
-                })
-            services.append(ServiceInfo(
-                service_uuid=service.uuid,
-                characteristics=chars
-            ))
+                chars.append(
+                    {
+                        "uuid": char.uuid,
+                        "properties": list(char.properties),
+                        "handle": char.handle,
+                    }
+                )
+            services.append(ServiceInfo(service_uuid=service.uuid, characteristics=chars))
 
         return services
 

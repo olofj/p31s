@@ -1,9 +1,6 @@
 """Tests for BLE connection handling."""
 
-import asyncio
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from p31sprinter.connection import BLEConnection, PrinterInfo
 
@@ -164,9 +161,7 @@ class TestMacExtraction:
     def test_extract_mac_from_longer_data(self):
         """Extract MAC from manufacturer data with extra bytes."""
         # MAC followed by additional data
-        manufacturer_data = {
-            0x1234: bytes([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x00, 0x01, 0x02])
-        }
+        manufacturer_data = {0x1234: bytes([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x00, 0x01, 0x02])}
         mac = BLEConnection._extract_mac_from_manufacturer_data(manufacturer_data)
         assert mac == "11:22:33:44:55:66"
 

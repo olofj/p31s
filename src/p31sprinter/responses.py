@@ -188,6 +188,7 @@ class ChunkSize:
             text = data.decode("ascii").strip()
             # Try to extract number from response
             import re
+
             match = re.search(r"\d+", text)
             if match:
                 return cls(size=int(match.group()), raw_data=data)
@@ -214,6 +215,7 @@ class PrintedCount:
         try:
             text = data.decode("ascii").strip()
             import re
+
             match = re.search(r"\d+", text)
             if match:
                 return cls(count=int(match.group()), raw_data=data)

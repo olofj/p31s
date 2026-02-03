@@ -19,7 +19,6 @@ from p31sprinter.connection import PrinterInfo
 from p31sprinter.coverage import generate_coverage_pattern
 from p31sprinter.tspl import Density
 
-
 # Fixtures (printer_address, connected_printer) are defined in conftest.py
 
 

@@ -32,7 +32,7 @@ def _check_barcode_dependency() -> None:
         raise ImportError(
             "python-barcode is required for barcode generation. "
             "Install with: pip install p31sprinter[barcodes]"
-        )
+        ) from None
 
 
 def _check_qrcode_dependency() -> None:
@@ -43,7 +43,7 @@ def _check_qrcode_dependency() -> None:
         raise ImportError(
             "qrcode is required for QR code generation. "
             "Install with: pip install p31sprinter[barcodes]"
-        )
+        ) from None
 
 
 def generate_barcode(
@@ -85,8 +85,7 @@ def generate_barcode(
 
     if barcode_type not in type_map:
         raise ValueError(
-            f"Invalid barcode type: {barcode_type}. "
-            f"Supported types: {list(type_map.keys())}"
+            f"Invalid barcode type: {barcode_type}. Supported types: {list(type_map.keys())}"
         )
 
     barcode_class = barcode.get_barcode_class(type_map[barcode_type])
@@ -154,9 +153,7 @@ def generate_qr(
     )
 
     if size not in QR_SIZES:
-        raise ValueError(
-            f"Invalid size: {size}. Supported sizes: {list(QR_SIZES.keys())}"
-        )
+        raise ValueError(f"Invalid size: {size}. Supported sizes: {list(QR_SIZES.keys())}")
 
     # Map error correction levels
     ec_map = {

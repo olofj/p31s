@@ -5,9 +5,10 @@ Converts images to 1-bit monochrome bitmap format suitable for
 thermal printing at 203 DPI.
 """
 
+from collections.abc import Iterator
 from io import BytesIO
 from pathlib import Path
-from typing import Iterator, Union
+from typing import Union
 
 from PIL import Image
 
@@ -151,7 +152,7 @@ class ImageProcessor:
                 # In PIL "1" mode, 0 is black, 255 is white
                 # For thermal printer: 1 = burn (black), 0 = no burn (white)
                 if pixel == 0:  # Black pixel
-                    row_byte |= (1 << bit_pos)
+                    row_byte |= 1 << bit_pos
 
                 bit_pos -= 1
                 if bit_pos < 0:
@@ -190,7 +191,7 @@ class ImageProcessor:
             for col in range(width):
                 pixel = image.getpixel((col, row))
                 if pixel == 0:  # Black pixel
-                    row_byte |= (1 << bit_pos)
+                    row_byte |= 1 << bit_pos
 
                 bit_pos -= 1
                 if bit_pos < 0:

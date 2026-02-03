@@ -15,17 +15,16 @@ from typing import Optional
 
 import click
 
+from .barcodes import generate_barcode, generate_qr
+from .coverage import generate_coverage_pattern
 from .printer import (
+    ConnectionError,
+    ImageError,
     P31SPrinter,
     PrinterError,
-    ConnectionError,
     PrintError,
-    ImageError,
 )
 from .tspl import Density
-from .barcodes import generate_barcode, generate_qr, BarcodeType
-from .coverage import generate_coverage_pattern
-
 
 # Bluetooth MAC address format: XX:XX:XX:XX:XX:XX (hex pairs separated by colons)
 BLUETOOTH_MAC_PATTERN = re.compile(r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
@@ -136,8 +135,12 @@ def main(ctx, debug):
 
 
 @main.command()
-@click.option("--timeout", type=click.FloatRange(1.0, 300.0), default=10.0,
-              help="Scan timeout in seconds (1-300)")
+@click.option(
+    "--timeout",
+    type=click.FloatRange(1.0, 300.0),
+    default=10.0,
+    help="Scan timeout in seconds (1-300)",
+)
 @click.option(
     "--no-auto",
     is_flag=True,
@@ -584,7 +587,9 @@ def qr(ctx, data, address, size, error_correction, density, copies, retry):
         if img.width > max_width:
             scale = max_width / img.width
             new_size = (int(img.width * scale), int(img.height * scale))
-            click.echo(f"Scaling QR from {img.width}x{img.height} to {new_size[0]}x{new_size[1]} to fit label...")
+            click.echo(
+                f"Scaling QR from {img.width}x{img.height} to {new_size[0]}x{new_size[1]} to fit label..."
+            )
             img = img.resize(new_size, resample=0)  # 0=NEAREST for sharp pixels
 
         printer = P31SPrinter()
@@ -680,8 +685,7 @@ def test_coverage(ctx, address, width, height, x_offset, y_offset, density, retr
                 sys.exit(1)
 
             click.echo(
-                f"Printing coverage pattern (x={x_offset}, y={y_offset}, "
-                f"density={density})..."
+                f"Printing coverage pattern (x={x_offset}, y={y_offset}, density={density})..."
             )
             success = await printer.print_image(
                 pattern,

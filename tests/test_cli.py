@@ -4,12 +4,10 @@ import pytest
 from click.testing import CliRunner
 
 from p31sprinter.cli import (
+    _format_printer_address,
+    _get_connect_address,
     main,
     validate_bluetooth_address,
-    scan_and_select,
-    BLUETOOTH_MAC_PATTERN,
-    _get_connect_address,
-    _format_printer_address,
 )
 
 
@@ -112,12 +110,10 @@ class TestScanAutoSelect:
 
     def test_scan_auto_selects_single_printer(self, runner, monkeypatch):
         """Test scan auto-selects when exactly one printer found."""
-        from p31sprinter.connection import PrinterInfo
         import p31sprinter.cli
+        from p31sprinter.connection import PrinterInfo
 
-        mock_printers = [
-            PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)
-        ]
+        mock_printers = [PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)]
 
         async def mock_scan(timeout=10.0):
             return mock_printers
@@ -131,12 +127,10 @@ class TestScanAutoSelect:
 
     def test_scan_no_auto_flag_shows_list_format(self, runner, monkeypatch):
         """Test --no-auto flag shows list format even with one printer."""
-        from p31sprinter.connection import PrinterInfo
         import p31sprinter.cli
+        from p31sprinter.connection import PrinterInfo
 
-        mock_printers = [
-            PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)
-        ]
+        mock_printers = [PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)]
 
         async def mock_scan(timeout=10.0):
             return mock_printers
@@ -150,8 +144,8 @@ class TestScanAutoSelect:
 
     def test_scan_multiple_printers_shows_list(self, runner, monkeypatch):
         """Test scan shows list format with multiple printers."""
-        from p31sprinter.connection import PrinterInfo
         import p31sprinter.cli
+        from p31sprinter.connection import PrinterInfo
 
         mock_printers = [
             PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50),
@@ -192,17 +186,16 @@ class TestInteractiveSelection:
 
     def test_print_without_address_scans_and_selects(self, runner, monkeypatch, tmp_path):
         """Test print command scans and auto-selects single printer."""
-        from p31sprinter.connection import PrinterInfo
         from PIL import Image
+
         import p31sprinter.cli
+        from p31sprinter.connection import PrinterInfo
 
         img_file = tmp_path / "test.png"
         img = Image.new("RGB", (10, 10), color="white")
         img.save(img_file)
 
-        mock_printers = [
-            PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)
-        ]
+        mock_printers = [PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)]
 
         async def mock_scan(timeout=10.0):
             return mock_printers
@@ -228,12 +221,10 @@ class TestInteractiveSelection:
 
     def test_test_without_address_scans_single_printer(self, runner, monkeypatch):
         """Test test command scans and auto-selects single printer."""
-        from p31sprinter.connection import PrinterInfo
         import p31sprinter.cli
+        from p31sprinter.connection import PrinterInfo
 
-        mock_printers = [
-            PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)
-        ]
+        mock_printers = [PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)]
 
         async def mock_scan(timeout=10.0):
             return mock_printers
@@ -272,8 +263,8 @@ class TestInteractiveSelection:
 
     def test_interactive_selection_with_multiple_printers(self, runner, monkeypatch):
         """Test interactive prompt appears with multiple printers."""
-        from p31sprinter.connection import PrinterInfo
         import p31sprinter.cli
+        from p31sprinter.connection import PrinterInfo
 
         mock_printers = [
             PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50),
@@ -308,8 +299,8 @@ class TestInteractiveSelection:
 
     def test_interactive_selection_second_option(self, runner, monkeypatch):
         """Test selecting second printer in interactive mode."""
-        from p31sprinter.connection import PrinterInfo
         import p31sprinter.cli
+        from p31sprinter.connection import PrinterInfo
 
         mock_printers = [
             PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50),
@@ -444,7 +435,10 @@ class TestScanTimeoutValidation:
         """Test timeout below 1.0 is rejected."""
         result = runner.invoke(main, ["scan", "--timeout", "0.5"])
         assert result.exit_code != 0
-        assert "0.5 is not in the range" in result.output or "1.0<=x<=300.0" in result.output.replace(" ", "")
+        assert (
+            "0.5 is not in the range" in result.output
+            or "1.0<=x<=300.0" in result.output.replace(" ", "")
+        )
 
     def test_timeout_too_high_rejected(self, runner):
         """Test timeout above 300.0 is rejected."""
@@ -502,8 +496,8 @@ class TestScanWithMacAddresses:
 
     def test_scan_shows_mac_on_macos(self, runner, monkeypatch):
         """Test scan shows extracted MAC address on macOS."""
-        from p31sprinter.connection import PrinterInfo
         import p31sprinter.cli
+        from p31sprinter.connection import PrinterInfo
 
         # Simulate macOS with extracted MAC
         mock_printers = [
@@ -527,8 +521,8 @@ class TestScanWithMacAddresses:
 
     def test_scan_uses_mac_for_auto_select(self, runner, monkeypatch):
         """Test auto-select uses MAC address when available."""
-        from p31sprinter.connection import PrinterInfo
         import p31sprinter.cli
+        from p31sprinter.connection import PrinterInfo
 
         mock_printers = [
             PrinterInfo(

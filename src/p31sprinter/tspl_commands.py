@@ -13,11 +13,11 @@ Command Sources:
 """
 
 from enum import IntEnum
-from typing import Optional
 
 
 class CommandType(IntEnum):
     """Command type identifiers from O8.java."""
+
     CONFIG = 10
     INITIALIZE = 11
     SELFTEST = 12
@@ -28,6 +28,7 @@ class CommandType(IntEnum):
 
 class BitmapMode(IntEnum):
     """Bitmap print modes for BITMAP command."""
+
     OVERWRITE = 0  # Overwrite existing content
     OR = 1  # OR with existing content
     XOR = 2  # XOR with existing content
@@ -171,14 +172,7 @@ class TSPLCommands:
         return f"PRINT {copies},{sets}\r\n".encode("ascii")
 
     @staticmethod
-    def bitmap(
-        x: int,
-        y: int,
-        width_bytes: int,
-        height: int,
-        mode: int,
-        data: bytes
-    ) -> bytes:
+    def bitmap(x: int, y: int, width_bytes: int, height: int, mode: int, data: bytes) -> bytes:
         """
         Send bitmap image data.
 
@@ -255,10 +249,9 @@ class TSPLCommands:
         if density >= 0:
             commands.append(TSPLCommands.density(density))
         commands.append(TSPLCommands.cls())
-        commands.append(TSPLCommands.bitmap(
-            x, y, bitmap_width_bytes, bitmap_height,
-            bitmap_mode, bitmap_data
-        ))
+        commands.append(
+            TSPLCommands.bitmap(x, y, bitmap_width_bytes, bitmap_height, bitmap_mode, bitmap_data)
+        )
         commands.append(TSPLCommands.print_label(copies))
         # Note: Some printers may need FORMFEED to advance to next label
         # Uncomment if label doesn't advance after printing:

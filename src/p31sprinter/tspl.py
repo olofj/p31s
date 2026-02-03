@@ -9,22 +9,22 @@ Reference: TSPL/TSPL2 Programming Manual
 
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Optional
 
 from PIL import Image
 
 
 class Density(IntEnum):
     """Print density levels (0-15)."""
-    LEVEL_0 = 0   # Lightest
+
+    LEVEL_0 = 0  # Lightest
     LEVEL_1 = 1
     LEVEL_2 = 2
     LEVEL_3 = 3
     LEVEL_4 = 4
     LEVEL_5 = 5
     LEVEL_6 = 6
-    LEVEL_7 = 7   # Medium
-    LEVEL_8 = 8   # Default
+    LEVEL_7 = 7  # Medium
+    LEVEL_8 = 8  # Default
     LEVEL_9 = 9
     LEVEL_10 = 10
     LEVEL_11 = 11
@@ -36,22 +36,25 @@ class Density(IntEnum):
 
 class BitmapMode(IntEnum):
     """Bitmap overlay modes."""
+
     OVERWRITE = 0  # Replace existing content
-    OR = 1         # OR with existing content
-    XOR = 2        # XOR with existing content
+    OR = 1  # OR with existing content
+    XOR = 2  # XOR with existing content
     COMPRESSED = 3  # QuickLZ compressed data
 
 
 class Direction(IntEnum):
     """Print direction."""
-    FORWARD = 0   # Normal
+
+    FORWARD = 0  # Normal
     BACKWARD = 1  # Mirrored
 
 
 @dataclass
 class LabelSize:
     """Label dimensions in millimeters."""
-    width: float   # Width in mm
+
+    width: float  # Width in mm
     height: float  # Height in mm
     gap: float = 5.0  # Gap between labels in mm (per iOS capture)
 
@@ -165,8 +168,7 @@ class TSPLCommand:
 
     # ---- Text Commands ----
 
-    def text(self, x: int, y: int, font: str, rotation: int,
-             x_mul: int, y_mul: int, content: str):
+    def text(self, x: int, y: int, font: str, rotation: int, x_mul: int, y_mul: int, content: str):
         """
         Draw text.
 
@@ -181,8 +183,18 @@ class TSPLCommand:
 
     # ---- Barcode Commands ----
 
-    def barcode(self, x: int, y: int, code_type: str, height: int,
-                readable: int, rotation: int, narrow: int, wide: int, content: str):
+    def barcode(
+        self,
+        x: int,
+        y: int,
+        code_type: str,
+        height: int,
+        readable: int,
+        rotation: int,
+        narrow: int,
+        wide: int,
+        content: str,
+    ):
         """
         Draw a 1D barcode.
 
@@ -195,10 +207,13 @@ class TSPLCommand:
             narrow, wide: Narrow and wide bar widths
             content: Barcode data
         """
-        self._add(f'BARCODE {x},{y},"{code_type}",{height},{readable},{rotation},{narrow},{wide},"{content}"')
+        self._add(
+            f'BARCODE {x},{y},"{code_type}",{height},{readable},{rotation},{narrow},{wide},"{content}"'
+        )
 
-    def qrcode(self, x: int, y: int, ecc: str, cell_width: int,
-               mode: str, rotation: int, content: str):
+    def qrcode(
+        self, x: int, y: int, ecc: str, cell_width: int, mode: str, rotation: int, content: str
+    ):
         """
         Draw a QR code.
 
@@ -214,8 +229,7 @@ class TSPLCommand:
 
     # ---- Bitmap Commands ----
 
-    def bitmap(self, x: int, y: int, width_bytes: int, height: int,
-               mode: BitmapMode, data: bytes):
+    def bitmap(self, x: int, y: int, width_bytes: int, height: int, mode: BitmapMode, data: bytes):
         """
         Draw a bitmap image.
 
@@ -231,9 +245,14 @@ class TSPLCommand:
         self._add_raw(data)
         self._add_raw(self.CRLF)
 
-    def bitmap_from_image(self, x: int, y: int, image: Image.Image,
-                          mode: BitmapMode = BitmapMode.OR,
-                          dither_black: bool = True):
+    def bitmap_from_image(
+        self,
+        x: int,
+        y: int,
+        image: Image.Image,
+        mode: BitmapMode = BitmapMode.OR,
+        dither_black: bool = True,
+    ):
         """
         Draw a PIL Image as bitmap.
 
@@ -268,7 +287,7 @@ class TSPLCommand:
                 # TSPL: 0=black (print), 1=white (no print)
                 # So we use the pixel value directly (0 stays 0, 255 becomes 1)
                 if pixel != 0:
-                    row_byte |= (1 << bit_pos)
+                    row_byte |= 1 << bit_pos
 
                 bit_pos -= 1
                 if bit_pos < 0:
@@ -351,8 +370,7 @@ class TSPLCommand:
         self.density(density)
         self.cls()
 
-    def print_image(self, image: Image.Image, x: int = 0, y: int = 0,
-                    copies: int = 1):
+    def print_image(self, image: Image.Image, x: int = 0, y: int = 0, copies: int = 1):
         """
         Convenience method to print an image.
 
@@ -365,9 +383,9 @@ class TSPLCommand:
         self.print_label(1, copies)
 
 
-def create_print_job(label: LabelSize, image: Image.Image,
-                     density: Density = Density.LEVEL_8,
-                     copies: int = 1) -> bytes:
+def create_print_job(
+    label: LabelSize, image: Image.Image, density: Density = Density.LEVEL_8, copies: int = 1
+) -> bytes:
     """
     Create a complete print job for an image.
 
