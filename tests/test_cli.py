@@ -432,6 +432,66 @@ class TestMacAddressHelpers:
         assert result == "8C56F3E2-7A1D-4B3C-9E8A-1F2D3C4B5A6D"
 
 
+class TestScanTimeoutValidation:
+    """Test scan command timeout parameter validation."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create CLI test runner."""
+        return CliRunner()
+
+    def test_timeout_too_low_rejected(self, runner):
+        """Test timeout below 1.0 is rejected."""
+        result = runner.invoke(main, ["scan", "--timeout", "0.5"])
+        assert result.exit_code != 0
+        assert "0.5 is not in the range" in result.output or "1.0<=x<=300.0" in result.output.replace(" ", "")
+
+    def test_timeout_too_high_rejected(self, runner):
+        """Test timeout above 300.0 is rejected."""
+        result = runner.invoke(main, ["scan", "--timeout", "500"])
+        assert result.exit_code != 0
+        assert "500" in result.output or "300.0" in result.output
+
+    def test_timeout_at_lower_bound_accepted(self, runner, monkeypatch):
+        """Test timeout of exactly 1.0 is accepted."""
+        import p31sprinter.cli
+
+        async def mock_scan(timeout=10.0):
+            return []
+
+        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+
+        result = runner.invoke(main, ["scan", "--timeout", "1.0"])
+        assert result.exit_code == 0
+        assert "Scanning for printers (1.0s)" in result.output
+
+    def test_timeout_at_upper_bound_accepted(self, runner, monkeypatch):
+        """Test timeout of exactly 300.0 is accepted."""
+        import p31sprinter.cli
+
+        async def mock_scan(timeout=10.0):
+            return []
+
+        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+
+        result = runner.invoke(main, ["scan", "--timeout", "300.0"])
+        assert result.exit_code == 0
+        assert "Scanning for printers (300.0s)" in result.output
+
+    def test_timeout_default_accepted(self, runner, monkeypatch):
+        """Test default timeout of 10.0 is accepted."""
+        import p31sprinter.cli
+
+        async def mock_scan(timeout=10.0):
+            return []
+
+        monkeypatch.setattr(p31sprinter.cli.P31SPrinter, "scan", mock_scan)
+
+        result = runner.invoke(main, ["scan"])
+        assert result.exit_code == 0
+        assert "Scanning for printers (10.0s)" in result.output
+
+
 class TestScanWithMacAddresses:
     """Test scan command output with MAC addresses on macOS."""
 

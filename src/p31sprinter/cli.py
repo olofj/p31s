@@ -136,7 +136,8 @@ def main(ctx, debug):
 
 
 @main.command()
-@click.option("--timeout", default=10.0, help="Scan timeout in seconds")
+@click.option("--timeout", type=click.FloatRange(1.0, 300.0), default=10.0,
+              help="Scan timeout in seconds (1-300)")
 @click.option(
     "--no-auto",
     is_flag=True,
