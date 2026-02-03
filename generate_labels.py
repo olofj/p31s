@@ -142,7 +142,6 @@ def create_label_image(drive_info: dict) -> Image.Image:
 
     capacity_font = load_font(36, bold=True)
     make_model_font = load_font(17)
-    serial_font = load_font(38, bold=True)
 
     capacity = drive_info['capacity']
     vendor = drive_info['vendor']
@@ -173,8 +172,14 @@ def create_label_image(drive_info: dict) -> Image.Image:
     bottom_rect_top = h_line_y
     draw.rectangle([(0, bottom_rect_top), (width, height)], fill='black')
 
-    serial_bbox = draw.textbbox((0, 0), serial, font=serial_font)
-    serial_width = serial_bbox[2] - serial_bbox[0]
+    # Fit serial number, shrinking font only if needed
+    max_serial_width = width - 2 * margin
+    for font_size in [38, 34, 30, 26, 22]:
+        serial_font = load_font(font_size, bold=True)
+        serial_bbox = draw.textbbox((0, 0), serial, font=serial_font)
+        serial_width = serial_bbox[2] - serial_bbox[0]
+        if serial_width <= max_serial_width:
+            break
     serial_x = (width - serial_width) // 2
     serial_y = bottom_rect_top + 6
 
