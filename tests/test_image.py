@@ -3,7 +3,13 @@
 import pytest
 from PIL import Image
 
-from p31sprinter.image import ImageProcessor, create_test_pattern
+from p31sprinter.image import (
+    ImageProcessor,
+    ImageSizeError,
+    MAX_IMAGE_DIMENSION,
+    MAX_IMAGE_PIXELS,
+    create_test_pattern,
+)
 
 
 class TestImageProcessor:
@@ -152,3 +158,80 @@ class TestCreateTestPattern:
 
         assert pattern.width == 96
         assert pattern.height == 96
+
+
+class TestImageSizeLimits:
+    """Test image size validation in ImageProcessor.load()."""
+
+    def test_valid_image_passes(self):
+        """Test that normal-sized images pass validation."""
+        processor = ImageProcessor()
+        img = Image.new("1", (100, 100), color=1)
+        result = processor.load(img)
+        assert result.size == (100, 100)
+
+    def test_max_dimension_passes(self):
+        """Test that images at max dimension pass."""
+        processor = ImageProcessor()
+        # Use a thin image to avoid exceeding pixel limit
+        img = Image.new("1", (MAX_IMAGE_DIMENSION, 100), color=1)
+        result = processor.load(img)
+        assert result.width == MAX_IMAGE_DIMENSION
+
+    def test_exceeds_max_width_raises_error(self):
+        """Test that image exceeding max width raises ImageSizeError."""
+        processor = ImageProcessor()
+        img = Image.new("1", (MAX_IMAGE_DIMENSION + 1, 100), color=1)
+        with pytest.raises(ImageSizeError, match="dimensions.*exceed maximum"):
+            processor.load(img)
+
+    def test_exceeds_max_height_raises_error(self):
+        """Test that image exceeding max height raises ImageSizeError."""
+        processor = ImageProcessor()
+        img = Image.new("1", (100, MAX_IMAGE_DIMENSION + 1), color=1)
+        with pytest.raises(ImageSizeError, match="dimensions.*exceed maximum"):
+            processor.load(img)
+
+    def test_max_pixels_passes(self):
+        """Test that images at max pixel count pass."""
+        processor = ImageProcessor()
+        # sqrt(10_000_000) ≈ 3162
+        side = int(MAX_IMAGE_PIXELS**0.5)
+        img = Image.new("1", (side, side), color=1)
+        result = processor.load(img)
+        assert result.width * result.height <= MAX_IMAGE_PIXELS
+
+    def test_exceeds_max_pixels_raises_error(self):
+        """Test that image exceeding max pixel count raises ImageSizeError."""
+        processor = ImageProcessor()
+        # Create image just over pixel limit (5000 x 2001 = 10,005,000)
+        img = Image.new("1", (5000, 2001), color=1)
+        with pytest.raises(ImageSizeError, match="pixel count.*exceeds"):
+            processor.load(img)
+
+    def test_load_from_bytes_validates(self, tmp_path):
+        """Test that loading from bytes validates size."""
+        processor = ImageProcessor()
+        # Create an oversized image and save to bytes
+        img = Image.new("1", (MAX_IMAGE_DIMENSION + 1, 100), color=1)
+        img_path = tmp_path / "large.png"
+        img.save(img_path)
+        with open(img_path, "rb") as f:
+            img_bytes = f.read()
+        with pytest.raises(ImageSizeError, match="dimensions.*exceed maximum"):
+            processor.load(img_bytes)
+
+    def test_load_from_path_validates(self, tmp_path):
+        """Test that loading from path validates size."""
+        processor = ImageProcessor()
+        # Create an oversized image and save to file
+        img = Image.new("1", (MAX_IMAGE_DIMENSION + 1, 100), color=1)
+        img_path = tmp_path / "large.png"
+        img.save(img_path)
+        with pytest.raises(ImageSizeError, match="dimensions.*exceed maximum"):
+            processor.load(img_path)
+
+    def test_image_size_error_is_value_error(self):
+        """Test that ImageSizeError inherits from ValueError."""
+        err = ImageSizeError("test")
+        assert isinstance(err, ValueError)

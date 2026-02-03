@@ -60,6 +60,11 @@ class ImageError(PrinterError):
     pass
 
 
+# Image size limits to prevent memory exhaustion from malicious/malformed images
+MAX_IMAGE_DIMENSION = 10000  # Maximum width or height in pixels
+MAX_IMAGE_PIXELS = 10_000_000  # Maximum total pixels (10 megapixels)
+
+
 class P31SPrinter:
     """
     High-level interface to P31S label printer.
@@ -227,6 +232,18 @@ class P31SPrinter:
                 img = image
             else:
                 raise ImageError(f"Unsupported image type: {type(image)}")
+
+            # Validate image dimensions to prevent memory exhaustion
+            if img.width > MAX_IMAGE_DIMENSION or img.height > MAX_IMAGE_DIMENSION:
+                raise ImageError(
+                    f"Image dimensions ({img.width}x{img.height}) exceed maximum "
+                    f"({MAX_IMAGE_DIMENSION}x{MAX_IMAGE_DIMENSION})"
+                )
+            if img.width * img.height > MAX_IMAGE_PIXELS:
+                raise ImageError(
+                    f"Image pixel count ({img.width * img.height:,}) exceeds "
+                    f"maximum ({MAX_IMAGE_PIXELS:,})"
+                )
 
             # Convert to 1-bit if needed
             if img.mode != "1":

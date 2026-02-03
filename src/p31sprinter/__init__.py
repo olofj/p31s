@@ -9,7 +9,10 @@ from .printer import (
     PrintError,
     PaperError,
     ImageError,
+    MAX_IMAGE_DIMENSION,
+    MAX_IMAGE_PIXELS,
 )
+from .image import ImageSizeError
 from .connection import BLEConnection
 from .tspl import TSPLCommand, LabelSize, Density, BitmapMode
 from .tspl_commands import TSPLCommands
@@ -22,6 +25,9 @@ __all__ = [
     "PrintError",
     "PaperError",
     "ImageError",
+    "ImageSizeError",
+    "MAX_IMAGE_DIMENSION",
+    "MAX_IMAGE_PIXELS",
     "BLEConnection",
     "TSPLCommand",
     "LabelSize",

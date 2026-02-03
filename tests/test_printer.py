@@ -88,6 +88,81 @@ class TestLoadImage:
         assert result.mode == "1"
 
 
+class TestImageSizeLimits:
+    """Test image size validation to prevent memory exhaustion."""
+
+    def test_valid_image_passes(self):
+        """Test that normal-sized images pass validation."""
+        printer = P31SPrinter()
+        img = Image.new("1", (100, 100), color=1)
+        result = printer._load_image(img)
+        assert result.size == (100, 100)
+
+    def test_max_dimension_passes(self):
+        """Test that images at max dimension pass."""
+        from p31sprinter.printer import MAX_IMAGE_DIMENSION
+        printer = P31SPrinter()
+        # Use a thin image to avoid exceeding pixel limit
+        img = Image.new("1", (MAX_IMAGE_DIMENSION, 100), color=1)
+        result = printer._load_image(img)
+        assert result.width == MAX_IMAGE_DIMENSION
+
+    def test_exceeds_max_width_raises_error(self):
+        """Test that image exceeding max width raises ImageError."""
+        from p31sprinter.printer import MAX_IMAGE_DIMENSION
+        printer = P31SPrinter()
+        img = Image.new("1", (MAX_IMAGE_DIMENSION + 1, 100), color=1)
+        with pytest.raises(ImageError, match="dimensions.*exceed maximum"):
+            printer._load_image(img)
+
+    def test_exceeds_max_height_raises_error(self):
+        """Test that image exceeding max height raises ImageError."""
+        from p31sprinter.printer import MAX_IMAGE_DIMENSION
+        printer = P31SPrinter()
+        img = Image.new("1", (100, MAX_IMAGE_DIMENSION + 1), color=1)
+        with pytest.raises(ImageError, match="dimensions.*exceed maximum"):
+            printer._load_image(img)
+
+    def test_max_pixels_passes(self):
+        """Test that images at max pixel count pass."""
+        from p31sprinter.printer import MAX_IMAGE_PIXELS
+        printer = P31SPrinter()
+        # sqrt(10_000_000) ≈ 3162
+        side = int(MAX_IMAGE_PIXELS**0.5)
+        img = Image.new("1", (side, side), color=1)
+        result = printer._load_image(img)
+        assert result.width * result.height <= MAX_IMAGE_PIXELS
+
+    def test_exceeds_max_pixels_raises_error(self):
+        """Test that image exceeding max pixel count raises ImageError."""
+        from p31sprinter.printer import MAX_IMAGE_PIXELS
+        printer = P31SPrinter()
+        # Create image just over pixel limit (5000 x 2001 = 10,005,000)
+        img = Image.new("1", (5000, 2001), color=1)
+        with pytest.raises(ImageError, match="pixel count.*exceeds"):
+            printer._load_image(img)
+
+    def test_error_message_includes_dimensions(self):
+        """Test that error message shows the problematic dimensions."""
+        from p31sprinter.printer import MAX_IMAGE_DIMENSION
+        printer = P31SPrinter()
+        img = Image.new("1", (15000, 200), color=1)
+        with pytest.raises(ImageError) as exc_info:
+            printer._load_image(img)
+        assert "15000x200" in str(exc_info.value)
+        assert str(MAX_IMAGE_DIMENSION) in str(exc_info.value)
+
+    def test_error_message_includes_pixel_count(self):
+        """Test that error message shows the pixel count."""
+        from p31sprinter.printer import MAX_IMAGE_PIXELS
+        printer = P31SPrinter()
+        img = Image.new("1", (5000, 2001), color=1)
+        with pytest.raises(ImageError) as exc_info:
+            printer._load_image(img)
+        assert "10,005,000" in str(exc_info.value)
+        assert "10,000,000" in str(exc_info.value)
+
+
 class TestPrintImageErrorHandling:
     """Test print_image error handling."""
 

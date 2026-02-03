@@ -11,6 +11,16 @@ from typing import Iterator, Union
 
 from PIL import Image
 
+# Image size limits to prevent memory exhaustion from malicious/malformed images
+MAX_IMAGE_DIMENSION = 10000  # Maximum width or height in pixels
+MAX_IMAGE_PIXELS = 10_000_000  # Maximum total pixels (10 megapixels)
+
+
+class ImageSizeError(ValueError):
+    """Image dimensions exceed safety limits."""
+
+    pass
+
 
 class ImageProcessor:
     """Process images for thermal printing."""
@@ -40,15 +50,33 @@ class ImageProcessor:
 
         Returns:
             PIL Image object
+
+        Raises:
+            ImageSizeError: If image dimensions exceed safety limits
+            ValueError: If source type is unsupported
         """
         if isinstance(source, Image.Image):
-            return source
+            img = source
         elif isinstance(source, (str, Path)):
-            return Image.open(source)
+            img = Image.open(source)
         elif isinstance(source, bytes):
-            return Image.open(BytesIO(source))
+            img = Image.open(BytesIO(source))
         else:
             raise ValueError(f"Unsupported source type: {type(source)}")
+
+        # Validate image dimensions to prevent memory exhaustion
+        if img.width > MAX_IMAGE_DIMENSION or img.height > MAX_IMAGE_DIMENSION:
+            raise ImageSizeError(
+                f"Image dimensions ({img.width}x{img.height}) exceed maximum "
+                f"({MAX_IMAGE_DIMENSION}x{MAX_IMAGE_DIMENSION})"
+            )
+        if img.width * img.height > MAX_IMAGE_PIXELS:
+            raise ImageSizeError(
+                f"Image pixel count ({img.width * img.height:,}) exceeds "
+                f"maximum ({MAX_IMAGE_PIXELS:,})"
+            )
+
+        return img
 
     def prepare(self, image: Image.Image, rotate: bool = False) -> Image.Image:
         """
