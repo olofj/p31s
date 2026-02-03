@@ -9,6 +9,7 @@ Usage:
 """
 
 import asyncio
+import re
 import sys
 
 import click
@@ -22,6 +23,32 @@ from .printer import (
 )
 from .tspl import Density
 from .barcodes import generate_barcode, generate_qr, BarcodeType
+
+
+# Bluetooth MAC address format: XX:XX:XX:XX:XX:XX (hex pairs separated by colons)
+BLUETOOTH_MAC_PATTERN = re.compile(r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
+
+
+def validate_bluetooth_address(ctx, param, value):
+    """Validate Bluetooth MAC address format.
+
+    Args:
+        ctx: Click context
+        param: Click parameter
+        value: Address value to validate
+
+    Returns:
+        The validated address (uppercased for consistency)
+
+    Raises:
+        click.BadParameter: If the address format is invalid
+    """
+    if not BLUETOOTH_MAC_PATTERN.match(value):
+        raise click.BadParameter(
+            f"Invalid Bluetooth address format: '{value}'. "
+            "Expected format: XX:XX:XX:XX:XX:XX (e.g., AA:BB:CC:DD:EE:FF)"
+        )
+    return value.upper()
 
 
 @click.group()
@@ -54,7 +81,7 @@ def scan(timeout):
 
 
 @main.command()
-@click.argument("address")
+@click.argument("address", callback=validate_bluetooth_address)
 @click.pass_context
 def discover(ctx, address):
     """Discover GATT services on a printer."""
@@ -87,7 +114,7 @@ def discover(ctx, address):
 
 
 @main.command("print")
-@click.argument("address")
+@click.argument("address", callback=validate_bluetooth_address)
 @click.argument("image", type=click.Path(exists=True))
 @click.option(
     "--density",
@@ -145,7 +172,7 @@ def print_image(ctx, address, image, density, copies, retry):
 
 
 @main.command()
-@click.argument("address")
+@click.argument("address", callback=validate_bluetooth_address)
 @click.option("--retry", default=0, help="Number of retries for transient failures")
 @click.pass_context
 def test(ctx, address, retry):
@@ -187,7 +214,7 @@ def test(ctx, address, retry):
 
 
 @main.command()
-@click.argument("address")
+@click.argument("address", callback=validate_bluetooth_address)
 @click.argument("hex_data")
 @click.option(
     "--force",
@@ -244,7 +271,7 @@ def raw(ctx, address, hex_data, force):
 
 
 @main.command()
-@click.argument("address")
+@click.argument("address", callback=validate_bluetooth_address)
 @click.argument("data")
 @click.option(
     "--type",
@@ -328,7 +355,7 @@ def barcode(ctx, address, data, barcode_type, density, copies, no_text, retry):
 
 
 @main.command()
-@click.argument("address")
+@click.argument("address", callback=validate_bluetooth_address)
 @click.argument("data")
 @click.option(
     "--size",

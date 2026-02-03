@@ -14,6 +14,7 @@ from p31sprinter.printer import (
     PrintError,
     ImageError,
     quick_print,
+    BLUETOOTH_MAC_PATTERN,
 )
 
 
@@ -250,3 +251,68 @@ class TestQuickPrint:
             ):
                 with pytest.raises(ConnectionError):
                     await quick_print("AA:BB:CC:DD:EE:FF", "/some/image.png")
+
+
+class TestBluetoothAddressValidation:
+    """Test Bluetooth MAC address validation."""
+
+    # Valid address formats
+    @pytest.mark.parametrize("address", [
+        "AA:BB:CC:DD:EE:FF",  # Uppercase
+        "aa:bb:cc:dd:ee:ff",  # Lowercase
+        "Aa:Bb:Cc:Dd:Ee:Ff",  # Mixed case
+        "00:00:00:00:00:00",  # All zeros
+        "FF:FF:FF:FF:FF:FF",  # All max
+        "12:34:56:78:9A:BC",  # Mixed hex digits
+    ])
+    def test_valid_address_pattern(self, address):
+        """Test that valid addresses match the pattern."""
+        assert BLUETOOTH_MAC_PATTERN.match(address) is not None
+
+    # Invalid address formats
+    @pytest.mark.parametrize("address,description", [
+        ("", "empty string"),
+        ("AA:BB:CC:DD:EE", "too short (5 segments)"),
+        ("AA:BB:CC:DD:EE:FF:00", "too long (7 segments)"),
+        ("AABBCCDDEEFF", "no colons"),
+        ("AA-BB-CC-DD-EE-FF", "dashes instead of colons"),
+        ("AA:BB:CC:DD:EE:GG", "invalid hex character G"),
+        ("AA:BB:CC:DD:EE:FFF", "segment too long"),
+        ("AA:BB:CC:DD:EE:F", "segment too short"),
+        ("AA:BB:CC:DD:EE:", "trailing colon"),
+        (":AA:BB:CC:DD:EE:FF", "leading colon"),
+        ("AA:BB:CC:DD:EE:FF ", "trailing space"),
+        (" AA:BB:CC:DD:EE:FF", "leading space"),
+        ("random-text", "random text"),
+        ("192.168.1.1", "IP address format"),
+    ])
+    def test_invalid_address_pattern(self, address, description):
+        """Test that invalid addresses don't match the pattern."""
+        assert BLUETOOTH_MAC_PATTERN.match(address) is None, f"Should reject: {description}"
+
+    @pytest.mark.asyncio
+    async def test_connect_rejects_invalid_address(self):
+        """Test that connect() raises ValueError for invalid address."""
+        printer = P31SPrinter()
+        with pytest.raises(ValueError, match="Invalid Bluetooth address"):
+            await printer.connect("invalid-address")
+
+    @pytest.mark.asyncio
+    async def test_connect_rejects_empty_address(self):
+        """Test that connect() raises ValueError for empty address."""
+        printer = P31SPrinter()
+        with pytest.raises(ValueError, match="Invalid Bluetooth address"):
+            await printer.connect("")
+
+    @pytest.mark.asyncio
+    async def test_connect_accepts_valid_address(self):
+        """Test that connect() accepts valid address format."""
+        printer = P31SPrinter()
+        printer.connection = MagicMock()
+        printer.connection.connect = AsyncMock(return_value=True)
+        printer.connection.write = AsyncMock(return_value=True)
+        printer.connection.read_response = AsyncMock(return_value=None)
+
+        # Should not raise ValueError
+        result = await printer.connect("AA:BB:CC:DD:EE:FF")
+        assert result is True

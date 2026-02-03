@@ -6,6 +6,7 @@ Uses TSPL text-based commands (verified working via iOS capture analysis).
 """
 
 import asyncio
+import re
 from pathlib import Path
 from typing import Optional, Union
 
@@ -15,6 +16,10 @@ from .connection import BLEConnection, PrinterInfo
 from .tspl import TSPLCommand, LabelSize, Density, BitmapMode
 from .tspl_commands import TSPLCommands
 from .responses import PrinterConfig, BatteryStatus
+
+
+# Bluetooth MAC address format: XX:XX:XX:XX:XX:XX (hex pairs separated by colons)
+BLUETOOTH_MAC_PATTERN = re.compile(r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
 
 
 # --- Exception Classes ---
@@ -111,7 +116,7 @@ class P31SPrinter:
         Connect to a printer.
 
         Args:
-            address: Bluetooth address of the printer
+            address: Bluetooth address of the printer (format: XX:XX:XX:XX:XX:XX)
             retries: Number of connection retries (default 0)
             retry_delay: Delay between retries in seconds (default 1.0)
 
@@ -120,7 +125,15 @@ class P31SPrinter:
 
         Raises:
             ConnectionError: If connection fails after all retries
+            ValueError: If address format is invalid
         """
+        # Validate Bluetooth address format
+        if not BLUETOOTH_MAC_PATTERN.match(address):
+            raise ValueError(
+                f"Invalid Bluetooth address format: '{address}'. "
+                "Expected format: XX:XX:XX:XX:XX:XX (e.g., AA:BB:CC:DD:EE:FF)"
+            )
+
         last_error: Optional[Exception] = None
         attempts = retries + 1
 
