@@ -373,7 +373,7 @@ async def quick_print(
     address: str,
     image_path: str,
     label_width_mm: float = 40.0,
-    label_height_mm: float = 10.0,
+    label_height_mm: float = 14.0,
     retries: int = 0,
 ) -> bool:
     """
@@ -383,7 +383,7 @@ async def quick_print(
         address: Printer Bluetooth address
         image_path: Path to image file
         label_width_mm: Label width in mm (default 40)
-        label_height_mm: Label height in mm (default 10)
+        label_height_mm: Label height in mm (default 14)
         retries: Number of retries for transient failures (default 0)
 
     Returns:
