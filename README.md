@@ -181,15 +181,6 @@ sudo python tools/discover.py
 
 Grant Bluetooth access when prompted by the system.
 
-## Contributing
-
-Contributions welcome! Some ideas:
-
-- **QuickLZ Compression** - Faster bitmap transfers
-- **Barcode/QR Support** - Using TSPL's built-in commands
-- **Windows Testing** - Verify Bleak compatibility
-- **Other Label Sizes** - Calibration for different dimensions
-
 ## References
 
 - [TSPL Programming Manual](https://www.tscprinters.com/EN/support/support_download/TSPL_TSPL2_Programming.pdf)
