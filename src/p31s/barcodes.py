@@ -41,8 +41,7 @@ def _check_qrcode_dependency() -> None:
         import qrcode  # noqa: F401
     except ImportError:
         raise ImportError(
-            "qrcode is required for QR code generation. "
-            "Install with: pip install p31s[barcodes]"
+            "qrcode is required for QR code generation. Install with: pip install p31s[barcodes]"
         ) from None
 
 

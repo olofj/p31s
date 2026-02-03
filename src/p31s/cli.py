@@ -237,8 +237,18 @@ def discover(ctx, address):
     default=8,
     help="Print density (0-15, default 8)",
 )
-@click.option("--copies", default=1, help="Number of copies")
-@click.option("--retry", default=0, help="Number of retries for transient failures")
+@click.option(
+    "--copies",
+    type=click.IntRange(1, 100),
+    default=1,
+    help="Number of copies (1-100)",
+)
+@click.option(
+    "--retry",
+    type=click.IntRange(0, 10),
+    default=0,
+    help="Number of retries (0-10)",
+)
 @click.pass_context
 def print_image(ctx, image, address, density, copies, retry):
     """Print an image file.
@@ -302,7 +312,12 @@ def print_image(ctx, image, address, density, copies, retry):
     callback=validate_bluetooth_address,
     help="Printer Bluetooth address (if omitted, scans and prompts)",
 )
-@click.option("--retry", default=0, help="Number of retries for transient failures")
+@click.option(
+    "--retry",
+    type=click.IntRange(0, 10),
+    default=0,
+    help="Number of retries (0-10)",
+)
 @click.pass_context
 def test(ctx, address, retry):
     """Print a test pattern.
@@ -442,9 +457,19 @@ def raw(ctx, hex_data, address, force):
     default=8,
     help="Print density (0-15, default 8)",
 )
-@click.option("--copies", default=1, help="Number of copies")
+@click.option(
+    "--copies",
+    type=click.IntRange(1, 100),
+    default=1,
+    help="Number of copies (1-100)",
+)
 @click.option("--no-text", is_flag=True, help="Omit human-readable text below barcode")
-@click.option("--retry", default=0, help="Number of retries for transient failures")
+@click.option(
+    "--retry",
+    type=click.IntRange(0, 10),
+    default=0,
+    help="Number of retries (0-10)",
+)
 @click.pass_context
 def barcode(ctx, data, address, barcode_type, density, copies, no_text, retry):
     """Generate and print a barcode.
@@ -545,8 +570,18 @@ def barcode(ctx, data, address, barcode_type, density, copies, no_text, retry):
     default=8,
     help="Print density (0-15, default 8)",
 )
-@click.option("--copies", default=1, help="Number of copies")
-@click.option("--retry", default=0, help="Number of retries for transient failures")
+@click.option(
+    "--copies",
+    type=click.IntRange(1, 100),
+    default=1,
+    help="Number of copies (1-100)",
+)
+@click.option(
+    "--retry",
+    type=click.IntRange(0, 10),
+    default=0,
+    help="Number of retries (0-10)",
+)
 @click.pass_context
 def qr(ctx, data, address, size, error_correction, density, copies, retry):
     """Generate and print a QR code.
@@ -648,7 +683,12 @@ def qr(ctx, data, address, size, error_correction, density, copies, retry):
     default=10,
     help="Print density (0-15, default 10)",
 )
-@click.option("--retry", default=0, help="Number of retries for transient failures")
+@click.option(
+    "--retry",
+    type=click.IntRange(0, 10),
+    default=0,
+    help="Number of retries (0-10)",
+)
 @click.pass_context
 def test_coverage(ctx, address, width, height, x_offset, y_offset, density, retry):
     """Print a coverage test pattern to validate print area.

@@ -555,3 +555,196 @@ class TestScanWithMacAddresses:
         result = runner.invoke(main, ["test"])
         assert result.exit_code == 0
         assert "Connecting to AA:BB:CC:DD:EE:FF" in result.output
+
+
+class TestCopiesAndRetryBoundsValidation:
+    """Test bounds checking for --copies and --retry parameters."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create CLI test runner."""
+        return CliRunner()
+
+    @pytest.fixture
+    def mock_image_file(self, tmp_path):
+        """Create a test image file."""
+        from PIL import Image
+
+        img_file = tmp_path / "test.png"
+        img = Image.new("RGB", (10, 10), color="white")
+        img.save(img_file)
+        return str(img_file)
+
+    # --copies validation tests
+
+    def test_print_copies_below_minimum_rejected(self, runner, mock_image_file):
+        """Test --copies=0 is rejected (minimum is 1)."""
+        result = runner.invoke(
+            main, ["print", mock_image_file, "--address", "AA:BB:CC:DD:EE:FF", "--copies", "0"]
+        )
+        assert result.exit_code != 0
+        assert "0 is not in the range" in result.output or "1<=x<=100" in result.output.replace(
+            " ", ""
+        )
+
+    def test_print_copies_above_maximum_rejected(self, runner, mock_image_file):
+        """Test --copies=101 is rejected (maximum is 100)."""
+        result = runner.invoke(
+            main, ["print", mock_image_file, "--address", "AA:BB:CC:DD:EE:FF", "--copies", "101"]
+        )
+        assert result.exit_code != 0
+        assert "101" in result.output or "100" in result.output
+
+    def test_print_copies_at_minimum_accepted(self, runner, mock_image_file, monkeypatch):
+        """Test --copies=1 is accepted."""
+        import p31s.cli
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_print(self, *args, **kwargs):
+            return True
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_image", mock_print)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(
+            main, ["print", mock_image_file, "--address", "AA:BB:CC:DD:EE:FF", "--copies", "1"]
+        )
+        assert result.exit_code == 0
+
+    def test_print_copies_at_maximum_accepted(self, runner, mock_image_file, monkeypatch):
+        """Test --copies=100 is accepted."""
+        import p31s.cli
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_print(self, *args, **kwargs):
+            return True
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_image", mock_print)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(
+            main, ["print", mock_image_file, "--address", "AA:BB:CC:DD:EE:FF", "--copies", "100"]
+        )
+        assert result.exit_code == 0
+
+    # --retry validation tests
+
+    def test_print_retry_below_minimum_rejected(self, runner, mock_image_file):
+        """Test --retry=-1 is rejected (minimum is 0)."""
+        result = runner.invoke(
+            main, ["print", mock_image_file, "--address", "AA:BB:CC:DD:EE:FF", "--retry", "-1"]
+        )
+        assert result.exit_code != 0
+        assert "-1 is not in the range" in result.output or "0<=x<=10" in result.output.replace(
+            " ", ""
+        )
+
+    def test_print_retry_above_maximum_rejected(self, runner, mock_image_file):
+        """Test --retry=11 is rejected (maximum is 10)."""
+        result = runner.invoke(
+            main, ["print", mock_image_file, "--address", "AA:BB:CC:DD:EE:FF", "--retry", "11"]
+        )
+        assert result.exit_code != 0
+        assert "11" in result.output or "10" in result.output
+
+    def test_print_retry_at_minimum_accepted(self, runner, mock_image_file, monkeypatch):
+        """Test --retry=0 is accepted."""
+        import p31s.cli
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_print(self, *args, **kwargs):
+            return True
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_image", mock_print)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(
+            main, ["print", mock_image_file, "--address", "AA:BB:CC:DD:EE:FF", "--retry", "0"]
+        )
+        assert result.exit_code == 0
+
+    def test_print_retry_at_maximum_accepted(self, runner, mock_image_file, monkeypatch):
+        """Test --retry=10 is accepted."""
+        import p31s.cli
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_print(self, *args, **kwargs):
+            return True
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "print_image", mock_print)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(
+            main, ["print", mock_image_file, "--address", "AA:BB:CC:DD:EE:FF", "--retry", "10"]
+        )
+        assert result.exit_code == 0
+
+    def test_test_command_retry_above_maximum_rejected(self, runner):
+        """Test test command rejects --retry=11."""
+        result = runner.invoke(main, ["test", "--address", "AA:BB:CC:DD:EE:FF", "--retry", "11"])
+        assert result.exit_code != 0
+        assert "11" in result.output or "10" in result.output
+
+    def test_barcode_copies_above_maximum_rejected(self, runner):
+        """Test barcode command rejects --copies=101."""
+        result = runner.invoke(
+            main, ["barcode", "12345", "--address", "AA:BB:CC:DD:EE:FF", "--copies", "101"]
+        )
+        assert result.exit_code != 0
+        assert "101" in result.output or "100" in result.output
+
+    def test_barcode_retry_above_maximum_rejected(self, runner):
+        """Test barcode command rejects --retry=11."""
+        result = runner.invoke(
+            main, ["barcode", "12345", "--address", "AA:BB:CC:DD:EE:FF", "--retry", "11"]
+        )
+        assert result.exit_code != 0
+        assert "11" in result.output or "10" in result.output
+
+    def test_qr_copies_above_maximum_rejected(self, runner):
+        """Test qr command rejects --copies=101."""
+        result = runner.invoke(
+            main, ["qr", "https://example.com", "--address", "AA:BB:CC:DD:EE:FF", "--copies", "101"]
+        )
+        assert result.exit_code != 0
+        assert "101" in result.output or "100" in result.output
+
+    def test_qr_retry_above_maximum_rejected(self, runner):
+        """Test qr command rejects --retry=11."""
+        result = runner.invoke(
+            main, ["qr", "https://example.com", "--address", "AA:BB:CC:DD:EE:FF", "--retry", "11"]
+        )
+        assert result.exit_code != 0
+        assert "11" in result.output or "10" in result.output
+
+    def test_test_coverage_retry_above_maximum_rejected(self, runner):
+        """Test test-coverage command rejects --retry=11."""
+        result = runner.invoke(
+            main, ["test-coverage", "--address", "AA:BB:CC:DD:EE:FF", "--retry", "11"]
+        )
+        assert result.exit_code != 0
+        assert "11" in result.output or "10" in result.output
