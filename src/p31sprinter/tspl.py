@@ -53,7 +53,7 @@ class LabelSize:
     """Label dimensions in millimeters."""
     width: float   # Width in mm
     height: float  # Height in mm
-    gap: float = 2.0  # Gap between labels in mm
+    gap: float = 5.0  # Gap between labels in mm (per iOS capture)
 
 
 class TSPLCommand:

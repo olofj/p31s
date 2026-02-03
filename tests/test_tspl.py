@@ -162,9 +162,9 @@ class TestLabelSize:
     """Test LabelSize dataclass."""
 
     def test_default_gap(self):
-        """Test default gap value."""
+        """Test default gap value (5.0mm per iOS capture)."""
         label = LabelSize(width=15.0, height=10.0)
-        assert label.gap == 2.0
+        assert label.gap == 5.0
 
     def test_custom_gap(self):
         """Test custom gap value."""

@@ -62,21 +62,19 @@ class P31SPrinter:
     Uses TSPL text-based commands verified via iOS app capture analysis.
     """
 
-    # Maximum printable resolution (verified via edge testing)
-    MAX_WIDTH_PX = 120   # ~15mm at 203 DPI (covers 14mm label width)
-    MAX_HEIGHT_PX = 320  # 40mm label height at 203 DPI
+    # Maximum printable resolution (from iOS app capture analysis)
+    MAX_WIDTH_PX = 96    # 12 bytes * 8 = 96 pixels
+    MAX_HEIGHT_PX = 304  # Verified from iOS capture
 
-    # Optimal padding for centering on 14mm label
-    # Content area: 116px (pad_left=4, pad_right=0)
-    PAD_LEFT = 4
-    PAD_RIGHT = 0
+    # Bitmap positioning from iOS app capture
+    BITMAP_X = 0  # X offset for bitmap
+    BITMAP_Y = 8  # Y offset for bitmap
 
-    # Default label size for 40x14mm labels (can be overridden)
+    # Default label size for 40x15mm labels (from iOS capture)
     # TSPL orientation: width = print head direction, height = feed direction
-    # For 40x14mm physical labels: width=14mm, height=40mm in TSPL terms
-    DEFAULT_LABEL_WIDTH_MM = 14.0
+    DEFAULT_LABEL_WIDTH_MM = 15.0
     DEFAULT_LABEL_HEIGHT_MM = 40.0
-    DEFAULT_GAP_MM = 2.0
+    DEFAULT_GAP_MM = 5.0
 
     def __init__(self, label_width_mm: float = DEFAULT_LABEL_WIDTH_MM,
                  label_height_mm: float = DEFAULT_LABEL_HEIGHT_MM,
@@ -85,9 +83,9 @@ class P31SPrinter:
         Initialize printer interface.
 
         Args:
-            label_width_mm: Label width in millimeters (default 14mm)
+            label_width_mm: Label width in millimeters (default 15mm per iOS capture)
             label_height_mm: Label height in millimeters (default 40mm)
-            gap_mm: Gap between labels in millimeters (default 2mm)
+            gap_mm: Gap between labels in millimeters (default 5mm per iOS capture)
         """
         self.connection = BLEConnection()
         self.label_size = LabelSize(label_width_mm, label_height_mm, gap_mm)
@@ -97,7 +95,7 @@ class P31SPrinter:
         """Enable/disable debug output."""
         self._debug = enabled
 
-    def set_label_size(self, width_mm: float, height_mm: float, gap_mm: float = 2.0):
+    def set_label_size(self, width_mm: float, height_mm: float, gap_mm: float = 5.0):
         """Set label dimensions."""
         self.label_size = LabelSize(width_mm, height_mm, gap_mm)
 
@@ -239,7 +237,7 @@ class P31SPrinter:
         image: Union[str, Path, bytes, Image.Image],
         density: Density = Density.LEVEL_8,
         x: int = 0,
-        y: int = 0,
+        y: int = 8,
         copies: int = 1,
         retries: int = 0,
         retry_delay: float = 1.0,
@@ -250,7 +248,7 @@ class P31SPrinter:
         Args:
             image: Image source (path, bytes, or PIL Image)
             density: Print darkness level (0-15, default 8)
-            x, y: Position offset in dots (default 0,0)
+            x, y: Position offset in dots (default x=0, y=8 per iOS capture)
             copies: Number of copies to print
             retries: Number of retries for transient failures (default 0)
             retry_delay: Delay between retries in seconds (default 1.0)
