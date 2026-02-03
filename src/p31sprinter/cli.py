@@ -23,6 +23,7 @@ from .printer import (
 )
 from .tspl import Density
 from .barcodes import generate_barcode, generate_qr, BarcodeType
+from .coverage import generate_coverage_pattern
 
 
 # Bluetooth MAC address format: XX:XX:XX:XX:XX:XX (hex pairs separated by colons)
@@ -457,6 +458,83 @@ def qr(ctx, address, data, size, error_correction, density, copies, retry):
             await printer.disconnect()
 
     asyncio.run(_qr())
+
+
+@main.command("test-coverage")
+@click.argument("address", callback=validate_bluetooth_address)
+@click.option("--width", default=96, help="Test pattern width in pixels")
+@click.option("--height", default=304, help="Test pattern height in pixels")
+@click.option("--x-offset", default=0, help="X offset in pixels")
+@click.option("--y-offset", default=8, help="Y offset in pixels")
+@click.option(
+    "--density",
+    type=click.IntRange(0, 15),
+    default=10,
+    help="Print density (0-15, default 10)",
+)
+@click.option("--retry", default=0, help="Number of retries for transient failures")
+@click.pass_context
+def test_coverage(ctx, address, width, height, x_offset, y_offset, density, retry):
+    """Print a coverage test pattern to validate print area.
+
+    Prints a pattern with border, corner markers, center crosshair,
+    and grid ticks to verify the printable area boundaries.
+
+    Examples:
+        p31s test-coverage AA:BB:CC:DD:EE:FF
+        p31s test-coverage AA:BB:CC:DD:EE:FF --width 100 --height 310
+        p31s test-coverage AA:BB:CC:DD:EE:FF --x-offset 4 --y-offset 0
+    """
+
+    async def _test_coverage():
+        click.echo(f"Generating coverage pattern ({width}x{height} px)...")
+        pattern = generate_coverage_pattern(width=width, height=height)
+
+        printer = P31SPrinter()
+        printer.set_debug(ctx.obj["debug"])
+
+        click.echo(f"Connecting to {address}...")
+
+        try:
+            if not await printer.connect(address, retries=retry):
+                click.echo("Failed to connect!", err=True)
+                sys.exit(1)
+
+            click.echo(
+                f"Printing coverage pattern (x={x_offset}, y={y_offset}, "
+                f"density={density})..."
+            )
+            success = await printer.print_image(
+                pattern,
+                density=Density(density),
+                x=x_offset,
+                y=y_offset,
+                retries=retry,
+            )
+
+            if success:
+                click.echo("Coverage pattern printed!")
+                click.echo("\nVerify:")
+                click.echo("  - Border visible on all 4 edges (no clipping)")
+                click.echo("  - Corner markers at label corners")
+                click.echo("  - Center crosshair well-centered")
+            else:
+                click.echo("Print failed!", err=True)
+                sys.exit(1)
+
+        except ConnectionError as e:
+            click.echo(f"Connection error: {e}", err=True)
+            sys.exit(1)
+        except PrintError as e:
+            click.echo(f"Print error: {e}", err=True)
+            sys.exit(1)
+        except PrinterError as e:
+            click.echo(f"Printer error: {e}", err=True)
+            sys.exit(1)
+        finally:
+            await printer.disconnect()
+
+    asyncio.run(_test_coverage())
 
 
 if __name__ == "__main__":

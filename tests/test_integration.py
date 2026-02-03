@@ -16,6 +16,8 @@ from PIL import Image
 
 from p31sprinter import P31SPrinter
 from p31sprinter.connection import PrinterInfo
+from p31sprinter.coverage import generate_coverage_pattern
+from p31sprinter.tspl import Density
 
 
 # Fixtures (printer_address, connected_printer) are defined in conftest.py
@@ -259,3 +261,35 @@ class TestErrorHandling:
 
         with pytest.raises(ConnectionError):
             await printer.print_image(img)
+
+
+# --- Coverage Test ---
+
+
+class TestCoverage:
+    """Tests for coverage pattern functionality."""
+
+    @pytest.mark.hardware
+    @pytest.mark.asyncio
+    async def test_print_coverage_pattern(self, connected_printer):
+        """Print coverage test pattern - for manual verification.
+
+        Prints a pattern with borders, corner markers, center crosshair,
+        and grid ticks to validate the printable area.
+
+        Manual verification required:
+        - Border should be visible on all 4 edges
+        - Corner markers should be at label corners
+        - No clipping should occur
+        """
+        # Generate pattern with iOS-derived dimensions
+        pattern = generate_coverage_pattern(width=96, height=304)
+
+        # Print with iOS-derived offsets
+        result = await connected_printer.print_image(
+            pattern,
+            x=0,
+            y=8,
+            density=Density.LEVEL_10,
+        )
+        assert result is True

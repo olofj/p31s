@@ -87,6 +87,12 @@ class TestCLIAddressValidation:
         # Should not contain validation error - will fail later on actual connection
         assert "Invalid Bluetooth address" not in result.output
 
+    def test_test_coverage_rejects_invalid_address(self, runner):
+        """Test test-coverage command rejects invalid address."""
+        result = runner.invoke(main, ["test-coverage", "not-valid"])
+        assert result.exit_code != 0
+        assert "Invalid Bluetooth address" in result.output
+
 
 class TestScanAutoSelect:
     """Test scan command auto-select behavior."""
