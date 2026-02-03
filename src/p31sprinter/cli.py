@@ -11,6 +11,7 @@ Usage:
 import asyncio
 import re
 import sys
+from typing import Optional
 
 import click
 
@@ -29,9 +30,18 @@ from .coverage import generate_coverage_pattern
 # Bluetooth MAC address format: XX:XX:XX:XX:XX:XX (hex pairs separated by colons)
 BLUETOOTH_MAC_PATTERN = re.compile(r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
 
+# macOS CoreBluetooth UUID format: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+MACOS_UUID_PATTERN = re.compile(
+    r"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+)
+
 
 def validate_bluetooth_address(ctx, param, value):
-    """Validate Bluetooth MAC address format.
+    """Validate Bluetooth address format.
+
+    Accepts:
+        - MAC address format: XX:XX:XX:XX:XX:XX (Linux/Windows)
+        - UUID format: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX (macOS)
 
     Args:
         ctx: Click context
@@ -44,12 +54,59 @@ def validate_bluetooth_address(ctx, param, value):
     Raises:
         click.BadParameter: If the address format is invalid
     """
-    if not BLUETOOTH_MAC_PATTERN.match(value):
-        raise click.BadParameter(
-            f"Invalid Bluetooth address format: '{value}'. "
-            "Expected format: XX:XX:XX:XX:XX:XX (e.g., AA:BB:CC:DD:EE:FF)"
-        )
-    return value.upper()
+    if value is None:
+        return None
+    if BLUETOOTH_MAC_PATTERN.match(value):
+        return value.upper()
+    if MACOS_UUID_PATTERN.match(value):
+        return value.upper()
+    raise click.BadParameter(
+        f"Invalid Bluetooth address format: '{value}'. "
+        "Expected MAC format XX:XX:XX:XX:XX:XX or "
+        "macOS UUID format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+    )
+
+
+async def scan_and_select(timeout: float = 10.0) -> Optional[str]:
+    """Scan for printers and let user select one interactively.
+
+    Args:
+        timeout: Scan timeout in seconds
+
+    Returns:
+        Selected printer address, or None if no printer selected
+    """
+    click.echo(f"Scanning for printers ({timeout}s)...")
+    printers = await P31SPrinter.scan(timeout=timeout)
+
+    if not printers:
+        click.echo("No printers found.", err=True)
+        return None
+
+    # Auto-select when exactly one printer found
+    if len(printers) == 1:
+        printer = printers[0]
+        click.echo(f"Found 1 printer: {printer.name} - using automatically")
+        click.echo(f"Address: {printer.address}")
+        return printer.address
+
+    # Multiple printers - show numbered menu
+    click.echo(f"\nFound {len(printers)} printer(s):\n")
+    for i, p in enumerate(printers, 1):
+        click.echo(f"  [{i}] {p}")
+
+    # Prompt for selection
+    click.echo()
+    while True:
+        try:
+            choice = click.prompt(f"Select printer (1-{len(printers)})", type=int)
+            if 1 <= choice <= len(printers):
+                selected = printers[choice - 1]
+                click.echo(f"Selected: {selected.name}")
+                return selected.address
+            click.echo(f"Please enter a number between 1 and {len(printers)}", err=True)
+        except click.Abort:
+            return None
 
 
 @click.group()
@@ -99,12 +156,26 @@ def scan(timeout, no_auto):
 
 
 @main.command()
-@click.argument("address", callback=validate_bluetooth_address)
+@click.option(
+    "--address",
+    "-a",
+    callback=validate_bluetooth_address,
+    help="Printer Bluetooth address (if omitted, scans and prompts)",
+)
 @click.pass_context
 def discover(ctx, address):
-    """Discover GATT services on a printer."""
+    """Discover GATT services on a printer.
+
+    If no address is specified, scans for printers and prompts for selection.
+    """
 
     async def _discover():
+        nonlocal address
+        if address is None:
+            address = await scan_and_select()
+            if address is None:
+                sys.exit(1)
+
         printer = P31SPrinter()
         printer.set_debug(ctx.obj["debug"])
 
@@ -132,8 +203,13 @@ def discover(ctx, address):
 
 
 @main.command("print")
-@click.argument("address", callback=validate_bluetooth_address)
 @click.argument("image", type=click.Path(exists=True))
+@click.option(
+    "--address",
+    "-a",
+    callback=validate_bluetooth_address,
+    help="Printer Bluetooth address (if omitted, scans and prompts)",
+)
 @click.option(
     "--density",
     type=click.IntRange(0, 15),
@@ -143,10 +219,19 @@ def discover(ctx, address):
 @click.option("--copies", default=1, help="Number of copies")
 @click.option("--retry", default=0, help="Number of retries for transient failures")
 @click.pass_context
-def print_image(ctx, address, image, density, copies, retry):
-    """Print an image file."""
+def print_image(ctx, image, address, density, copies, retry):
+    """Print an image file.
+
+    If no address is specified, scans for printers and prompts for selection.
+    """
 
     async def _print():
+        nonlocal address
+        if address is None:
+            address = await scan_and_select()
+            if address is None:
+                sys.exit(1)
+
         printer = P31SPrinter()
         printer.set_debug(ctx.obj["debug"])
 
@@ -190,13 +275,27 @@ def print_image(ctx, address, image, density, copies, retry):
 
 
 @main.command()
-@click.argument("address", callback=validate_bluetooth_address)
+@click.option(
+    "--address",
+    "-a",
+    callback=validate_bluetooth_address,
+    help="Printer Bluetooth address (if omitted, scans and prompts)",
+)
 @click.option("--retry", default=0, help="Number of retries for transient failures")
 @click.pass_context
 def test(ctx, address, retry):
-    """Print a test pattern."""
+    """Print a test pattern.
+
+    If no address is specified, scans for printers and prompts for selection.
+    """
 
     async def _test():
+        nonlocal address
+        if address is None:
+            address = await scan_and_select()
+            if address is None:
+                sys.exit(1)
+
         printer = P31SPrinter()
         printer.set_debug(ctx.obj["debug"])
 
@@ -232,20 +331,27 @@ def test(ctx, address, retry):
 
 
 @main.command()
-@click.argument("address", callback=validate_bluetooth_address)
 @click.argument("hex_data")
+@click.option(
+    "--address",
+    "-a",
+    callback=validate_bluetooth_address,
+    help="Printer Bluetooth address (if omitted, scans and prompts)",
+)
 @click.option(
     "--force",
     is_flag=True,
     help="Acknowledge security risks and skip warning prompt",
 )
 @click.pass_context
-def raw(ctx, address, hex_data, force):
+def raw(ctx, hex_data, address, force):
     """Send raw hex data to printer (for debugging/testing).
 
     WARNING: This command bypasses all safety checks and can potentially
     misconfigure or damage your printer. Only use if you understand TSPL
     protocol commands.
+
+    If no address is specified, scans for printers and prompts for selection.
     """
     if not force:
         click.echo(
@@ -259,6 +365,12 @@ def raw(ctx, address, hex_data, force):
             return
 
     async def _raw():
+        nonlocal address
+        if address is None:
+            address = await scan_and_select()
+            if address is None:
+                sys.exit(1)
+
         printer = P31SPrinter()
         printer.set_debug(True)  # Always debug for raw commands
 
@@ -289,8 +401,13 @@ def raw(ctx, address, hex_data, force):
 
 
 @main.command()
-@click.argument("address", callback=validate_bluetooth_address)
 @click.argument("data")
+@click.option(
+    "--address",
+    "-a",
+    callback=validate_bluetooth_address,
+    help="Printer Bluetooth address (if omitted, scans and prompts)",
+)
 @click.option(
     "--type",
     "barcode_type",
@@ -308,17 +425,26 @@ def raw(ctx, address, hex_data, force):
 @click.option("--no-text", is_flag=True, help="Omit human-readable text below barcode")
 @click.option("--retry", default=0, help="Number of retries for transient failures")
 @click.pass_context
-def barcode(ctx, address, data, barcode_type, density, copies, no_text, retry):
+def barcode(ctx, data, address, barcode_type, density, copies, no_text, retry):
     """Generate and print a barcode.
 
     DATA is the content to encode (numbers/text depending on barcode type).
 
+    If no address is specified, scans for printers and prompts for selection.
+
     Examples:
-        p31s barcode AA:BB:CC:DD:EE:FF "12345"
-        p31s barcode AA:BB:CC:DD:EE:FF "HELLO" --type code39
+        p31s barcode "12345"
+        p31s barcode "HELLO" --type code39
+        p31s barcode "12345" -a AA:BB:CC:DD:EE:FF
     """
 
     async def _barcode():
+        nonlocal address
+        if address is None:
+            address = await scan_and_select()
+            if address is None:
+                sys.exit(1)
+
         try:
             click.echo(f"Generating {barcode_type} barcode...")
             img = generate_barcode(
@@ -373,8 +499,13 @@ def barcode(ctx, address, data, barcode_type, density, copies, no_text, retry):
 
 
 @main.command()
-@click.argument("address", callback=validate_bluetooth_address)
 @click.argument("data")
+@click.option(
+    "--address",
+    "-a",
+    callback=validate_bluetooth_address,
+    help="Printer Bluetooth address (if omitted, scans and prompts)",
+)
 @click.option(
     "--size",
     type=click.Choice(["small", "medium", "large"]),
@@ -396,17 +527,26 @@ def barcode(ctx, address, data, barcode_type, density, copies, no_text, retry):
 @click.option("--copies", default=1, help="Number of copies")
 @click.option("--retry", default=0, help="Number of retries for transient failures")
 @click.pass_context
-def qr(ctx, address, data, size, error_correction, density, copies, retry):
+def qr(ctx, data, address, size, error_correction, density, copies, retry):
     """Generate and print a QR code.
 
     DATA is the content to encode (URL, text, etc.).
 
+    If no address is specified, scans for printers and prompts for selection.
+
     Examples:
-        p31s qr AA:BB:CC:DD:EE:FF "https://example.com"
-        p31s qr AA:BB:CC:DD:EE:FF "Hello World" --size large
+        p31s qr "https://example.com"
+        p31s qr "Hello World" --size large
+        p31s qr "https://example.com" -a AA:BB:CC:DD:EE:FF
     """
 
     async def _qr():
+        nonlocal address
+        if address is None:
+            address = await scan_and_select()
+            if address is None:
+                sys.exit(1)
+
         try:
             click.echo(f"Generating QR code ({size})...")
             img = generate_qr(
@@ -461,7 +601,12 @@ def qr(ctx, address, data, size, error_correction, density, copies, retry):
 
 
 @main.command("test-coverage")
-@click.argument("address", callback=validate_bluetooth_address)
+@click.option(
+    "--address",
+    "-a",
+    callback=validate_bluetooth_address,
+    help="Printer Bluetooth address (if omitted, scans and prompts)",
+)
 @click.option("--width", default=96, help="Test pattern width in pixels")
 @click.option("--height", default=304, help="Test pattern height in pixels")
 @click.option("--x-offset", default=0, help="X offset in pixels")
@@ -480,13 +625,21 @@ def test_coverage(ctx, address, width, height, x_offset, y_offset, density, retr
     Prints a pattern with border, corner markers, center crosshair,
     and grid ticks to verify the printable area boundaries.
 
+    If no address is specified, scans for printers and prompts for selection.
+
     Examples:
-        p31s test-coverage AA:BB:CC:DD:EE:FF
-        p31s test-coverage AA:BB:CC:DD:EE:FF --width 100 --height 310
-        p31s test-coverage AA:BB:CC:DD:EE:FF --x-offset 4 --y-offset 0
+        p31s test-coverage
+        p31s test-coverage --width 100 --height 310
+        p31s test-coverage -a AA:BB:CC:DD:EE:FF --x-offset 4 --y-offset 0
     """
 
     async def _test_coverage():
+        nonlocal address
+        if address is None:
+            address = await scan_and_select()
+            if address is None:
+                sys.exit(1)
+
         click.echo(f"Generating coverage pattern ({width}x{height} px)...")
         pattern = generate_coverage_pattern(width=width, height=height)
 
