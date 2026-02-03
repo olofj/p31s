@@ -141,7 +141,7 @@ class TestStatus:
         # Battery may be None if printer doesn't respond to BATTERY?
         # but should not raise an exception
         if battery is not None:
-            assert 0 <= battery.percentage <= 100
+            assert 0 <= battery.level <= 100
 
 
 # --- Print Tests ---
