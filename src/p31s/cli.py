@@ -874,5 +874,77 @@ def forget():
         click.echo("No cached printer to forget.")
 
 
+@main.command()
+@click.option(
+    "--address",
+    "-a",
+    callback=validate_bluetooth_address,
+    help="Printer Bluetooth address (if omitted, scans and prompts)",
+)
+@click.option(
+    "--rescan",
+    "-r",
+    is_flag=True,
+    help="Force new scan instead of using cached printer",
+)
+@click.pass_context
+def status(ctx, address, rescan):
+    """Show printer configuration and battery status.
+
+    Connects to the printer and displays firmware version, hardware version,
+    resolution, and battery level.
+
+    If no address is specified, scans for printers and prompts for selection.
+    """
+
+    async def _status():
+        nonlocal address
+        if address is None:
+            address = await scan_and_select(rescan=rescan)
+            if address is None:
+                sys.exit(1)
+
+        printer = P31SPrinter()
+        printer.set_debug(ctx.obj["debug"])
+
+        click.echo(f"Connecting to {address}...")
+
+        try:
+            if not await printer.connect(address):
+                click.echo("Failed to connect!", err=True)
+                sys.exit(1)
+
+            # Query config and battery
+            config = await printer.get_config()
+            battery = await printer.get_battery()
+
+            # Display results
+            click.echo()
+
+            if config:
+                click.echo("Configuration:")
+                click.echo(f"  Firmware:    {config.firmware_version_display()}")
+                click.echo(f"  Hardware:    {config.hardware_version_display()}")
+                click.echo(f"  Resolution:  {config.resolution} DPI")
+            else:
+                click.echo("Configuration: Unable to read", err=True)
+
+            click.echo()
+
+            if battery:
+                charging_indicator = " (charging)" if battery.charging else ""
+                click.echo(f"Battery:       {battery.level}%{charging_indicator}")
+            else:
+                click.echo("Battery:       Unable to read", err=True)
+
+        except ConnectionError as e:
+            click.echo(f"Connection error: {e}", err=True)
+            sys.exit(1)
+        finally:
+            await printer.disconnect()
+
+    asyncio.run(_status())
+
+
 if __name__ == "__main__":
     main()

@@ -1002,6 +1002,7 @@ class TestHelpCommand:
             "raw",
             "forget",
             "help",
+            "status",
         ]
 
         for cmd_name in commands:
@@ -1017,3 +1018,180 @@ class TestHelpCommand:
         assert "Available commands:" in result.output
         assert "scan" in result.output
         assert "print" in result.output
+
+
+class TestStatusCommand:
+    """Tests for the status command."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create CLI test runner."""
+        return CliRunner()
+
+    @pytest.fixture(autouse=True)
+    def clear_cache(self, tmp_path, monkeypatch):
+        """Isolate cache for each test to prevent interference."""
+        import p31s.cache
+
+        test_config_dir = tmp_path / ".config" / "p31s"
+        test_cache_file = test_config_dir / "last_printer"
+
+        monkeypatch.setattr(p31s.cache, "CONFIG_DIR", test_config_dir)
+        monkeypatch.setattr(p31s.cache, "CACHE_FILE", test_cache_file)
+
+    def test_status_rejects_invalid_address(self, runner):
+        """Test status command rejects invalid address."""
+        result = runner.invoke(main, ["status", "--address", "invalid-address"])
+        assert result.exit_code != 0
+        assert "Invalid Bluetooth address" in result.output
+
+    def test_status_shows_config_and_battery(self, runner, monkeypatch):
+        """Test status command displays configuration and battery info."""
+        import p31s.cli
+        from p31s.responses import BatteryStatus, PrinterConfig
+
+        mock_config = PrinterConfig(
+            resolution=203,
+            hardware_version="000100",
+            firmware_version="010402",
+            shutdown_timer=0,
+            sound_enabled=False,
+        )
+        mock_battery = BatteryStatus(level=85, charging=False)
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_get_config(self):
+            return mock_config
+
+        async def mock_get_battery(self):
+            return mock_battery
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "get_config", mock_get_config)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "get_battery", mock_get_battery)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(main, ["status", "-a", "AA:BB:CC:DD:EE:FF"])
+        assert result.exit_code == 0
+        assert "Configuration:" in result.output
+        assert "Firmware:" in result.output
+        assert "1.4.2" in result.output
+        assert "Hardware:" in result.output
+        assert "0.1.0" in result.output
+        assert "Resolution:" in result.output
+        assert "203 DPI" in result.output
+        assert "Battery:" in result.output
+        assert "85%" in result.output
+
+    def test_status_shows_charging_indicator(self, runner, monkeypatch):
+        """Test status command shows charging indicator when battery is charging."""
+        import p31s.cli
+        from p31s.responses import BatteryStatus, PrinterConfig
+
+        mock_config = PrinterConfig(
+            resolution=203,
+            hardware_version="000100",
+            firmware_version="010402",
+            shutdown_timer=0,
+            sound_enabled=False,
+        )
+        mock_battery = BatteryStatus(level=45, charging=True)
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_get_config(self):
+            return mock_config
+
+        async def mock_get_battery(self):
+            return mock_battery
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "get_config", mock_get_config)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "get_battery", mock_get_battery)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(main, ["status", "-a", "AA:BB:CC:DD:EE:FF"])
+        assert result.exit_code == 0
+        assert "45%" in result.output
+        assert "(charging)" in result.output
+
+    def test_status_handles_unable_to_read_config(self, runner, monkeypatch):
+        """Test status command handles config read failure gracefully."""
+        import p31s.cli
+        from p31s.responses import BatteryStatus
+
+        mock_battery = BatteryStatus(level=75, charging=False)
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_get_config(self):
+            return None
+
+        async def mock_get_battery(self):
+            return mock_battery
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "get_config", mock_get_config)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "get_battery", mock_get_battery)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(main, ["status", "-a", "AA:BB:CC:DD:EE:FF"])
+        assert result.exit_code == 0
+        assert "Unable to read" in result.output
+        assert "75%" in result.output
+
+    def test_status_scans_when_no_address(self, runner, monkeypatch):
+        """Test status command scans for printer when no address provided."""
+        import p31s.cli
+        from p31s.connection import PrinterInfo
+        from p31s.responses import BatteryStatus, PrinterConfig
+
+        mock_printers = [PrinterInfo(name="POLONO P31S", address="AA:BB:CC:DD:EE:FF", rssi=-50)]
+        mock_config = PrinterConfig(
+            resolution=203,
+            hardware_version="000100",
+            firmware_version="010402",
+            shutdown_timer=0,
+            sound_enabled=False,
+        )
+        mock_battery = BatteryStatus(level=100, charging=False)
+
+        async def mock_scan(timeout=10.0):
+            return mock_printers
+
+        async def mock_connect(self, *args, **kwargs):
+            return True
+
+        async def mock_get_config(self):
+            return mock_config
+
+        async def mock_get_battery(self):
+            return mock_battery
+
+        async def mock_disconnect(self):
+            pass
+
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "scan", mock_scan)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "connect", mock_connect)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "get_config", mock_get_config)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "get_battery", mock_get_battery)
+        monkeypatch.setattr(p31s.cli.P31SPrinter, "disconnect", mock_disconnect)
+
+        result = runner.invoke(main, ["status"])
+        assert result.exit_code == 0
+        assert "Found 1 printer" in result.output
+        assert "Configuration:" in result.output
+        assert "Battery:" in result.output
