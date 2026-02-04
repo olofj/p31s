@@ -2,10 +2,12 @@
 Command-Line Interface for P31S Printer.
 
 Usage:
-    p31 scan              - Scan for printers
-    p31 discover ADDRESS  - Discover services on a printer
-    p31 print ADDRESS IMAGE - Print an image
-    p31 test ADDRESS      - Print test pattern
+    p31s help             - Show available commands
+    p31s help <command>   - Show help for a command
+    p31s scan             - Scan for printers
+    p31s discover ADDRESS - Discover services on a printer
+    p31s print ADDRESS IMAGE - Print an image
+    p31s test ADDRESS     - Print test pattern
 """
 
 import asyncio
@@ -151,6 +153,36 @@ def main(ctx, debug):
     """P31S Label Printer CLI."""
     ctx.ensure_object(dict)
     ctx.obj["debug"] = debug
+
+
+@main.command("help")
+@click.argument("command_name", required=False)
+@click.pass_context
+def help_command(ctx, command_name):
+    """Show help for a command.
+
+    Examples:
+        p31s help          Show all available commands
+        p31s help qr       Show help for the qr command
+        p31s help print    Show help for the print command
+    """
+    if command_name is None:
+        # Show main group help
+        click.echo(main.get_help(ctx.parent))
+        return
+
+    # Look up the subcommand
+    cmd = main.get_command(ctx, command_name)
+    if cmd is None:
+        click.echo(f"Error: No such command '{command_name}'.", err=True)
+        click.echo("\nAvailable commands:", err=True)
+        for name in sorted(main.list_commands(ctx)):
+            click.echo(f"  {name}", err=True)
+        ctx.exit(1)
+
+    # Build a context for the subcommand and print its help
+    with click.Context(cmd, info_name=command_name, parent=ctx.parent) as sub_ctx:
+        click.echo(cmd.get_help(sub_ctx))
 
 
 @main.command()

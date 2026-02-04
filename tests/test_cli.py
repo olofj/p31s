@@ -946,3 +946,74 @@ class TestCopiesAndRetryBoundsValidation:
         )
         assert result.exit_code != 0
         assert "11" in result.output or "10" in result.output
+
+
+class TestHelpCommand:
+    """Tests for the help subcommand."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create CLI test runner."""
+        return CliRunner()
+
+    def test_help_no_args_shows_main_help(self, runner):
+        """'p31s help' should show same content as 'p31s --help'."""
+        help_cmd = runner.invoke(main, ["help"])
+
+        assert help_cmd.exit_code == 0
+        # Both should show the commands list
+        assert "Commands:" in help_cmd.output
+        assert "scan" in help_cmd.output
+        assert "print" in help_cmd.output
+
+    def test_help_with_command_shows_command_help(self, runner):
+        """'p31s help qr' should show qr command help."""
+        result = runner.invoke(main, ["help", "qr"])
+
+        assert result.exit_code == 0
+        assert "qr" in result.output.lower()
+        assert "QR code" in result.output or "qr code" in result.output.lower()
+
+    def test_help_with_invalid_command_shows_error(self, runner):
+        """'p31s help nonexistent' should show error."""
+        result = runner.invoke(main, ["help", "nonexistent"])
+
+        assert result.exit_code != 0
+        assert "nonexistent" in result.output
+
+    def test_help_lists_all_commands(self, runner):
+        """Help output should list all available commands."""
+        result = runner.invoke(main, ["help"])
+
+        expected_commands = ["scan", "print", "qr", "barcode", "test", "forget"]
+        for cmd in expected_commands:
+            assert cmd in result.output
+
+    def test_help_for_each_command_succeeds(self, runner):
+        """'p31s help <cmd>' should succeed for all commands."""
+        commands = [
+            "scan",
+            "discover",
+            "print",
+            "test",
+            "barcode",
+            "qr",
+            "test-coverage",
+            "raw",
+            "forget",
+            "help",
+        ]
+
+        for cmd_name in commands:
+            result = runner.invoke(main, ["help", cmd_name])
+            assert result.exit_code == 0, f"help {cmd_name} failed: {result.output}"
+            assert "Usage:" in result.output
+
+    def test_help_shows_available_commands_on_error(self, runner):
+        """Invalid command should list available commands."""
+        result = runner.invoke(main, ["help", "nonexistent"])
+
+        assert result.exit_code != 0
+        assert "Available commands:" in result.output
+        assert "scan" in result.output
+        assert "print" in result.output
